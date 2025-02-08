@@ -1,0 +1,11 @@
+#alles ignorierem
+*
+
+#in verzeichnisse reinschauen
+!*/
+#außer python files in allen verzeichnissen
+
+!**/*.py
+
+#gitignore nicht ignorieren
+!.gitignore
