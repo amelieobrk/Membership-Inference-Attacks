@@ -7,31 +7,30 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import matplotlib.pyplot as plt
 
-# Pfad zu den CIFAR-10-Daten
 data_path = "~/amelie/data"
 
-# Hyperparameter
+
 batch_size = 128
 num_workers = 16
 learning_rate = 0.001
 num_epochs = 100
-lr_decay = 1e-7  # Lernratenzerfall
+lr_decay = 1e-7  
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Datenvorverarbeitung
+#preprocessing
 transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
-# CIFAR-10 Datensätze laden
+# load cifar-10 data
 train_dataset = datasets.CIFAR10(root=data_path, train=True, transform=transform, download=False)
 test_dataset = datasets.CIFAR10(root=data_path, train=False, transform=transform, download=False)
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-# Modellarchitektur
+#simple model architecture (according to paper)
 class CIFAR10Model(nn.Module):
     def __init__(self):
         super(CIFAR10Model, self).__init__()
@@ -58,14 +57,13 @@ class CIFAR10Model(nn.Module):
 
 model = CIFAR10Model().to(device)
 
-# Loss und Optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-# Scheduler für dynamischen Lernratenzerfall
+# Define Scheduler 
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
 
-# Training und Validierung
+# safe training + validation accuracies and train_losses for plots
 train_losses, test_accuracies, train_accuracies = [], [], []
 
 for epoch in range(num_epochs):
@@ -107,11 +105,10 @@ for epoch in range(num_epochs):
 
     print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%, Test Acc: {test_acc:.2f}%")
 
-# Ergebnisse speichern
+# Safe plots and target model
 output_path = "/home/lab24inference/amelie/target_model"
 os.makedirs(output_path, exist_ok=True)
 
-# Plots erstellen und speichern
 plt.figure(figsize=(10, 5))
 
 # Loss
@@ -132,6 +129,6 @@ plt.legend()
 plt.savefig(os.path.join(output_path, "training_metrics_cifar10.png"))
 plt.show()
 
-# Modell speichern
+# Final model
 torch.save(model.state_dict(), os.path.join(output_path, "cifar10_model.pth"))
-print(f"Training abgeschlossen. Ergebnisse unter: {output_path}")
+print(f"Training done, model safed at {output_path}")

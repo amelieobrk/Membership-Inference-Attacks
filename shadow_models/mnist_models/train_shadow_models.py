@@ -100,6 +100,12 @@ def train_model(model, train_loader, test_loader, device, model_id, epochs=10):
             json.dump(progress, f)
         print(f'Epoch {epoch+1}, Train Acc: {train_acc:.2f}%, Test Acc: {test_acc:.2f}%')
 
+     # Save the trained model
+        model_save_path = os.path.join(models_dir, f'model_{model_id}.pth')
+        torch.save(model.state_dict(), model_save_path)
+        print(f'Model {model_id} saved at {model_save_path}')
+
+
     return progress['train_accuracy'], progress['test_accuracy']
 
 

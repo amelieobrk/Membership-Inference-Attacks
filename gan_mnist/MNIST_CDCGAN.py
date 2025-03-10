@@ -49,7 +49,7 @@ class Discriminator(nn.Module):
        # print(f"Nach conv3: {x.size()}")
         x = torch.sigmoid(self.conv4(x))
         print(f"Nach conv4: {x.size()}")
-        return x.view(-1, 1)  # Sicherstellen, dass die Ausgabe [Batch_size, 1] ist
+        return x.view(-1, 1)  #make sure output is: bBatch_size, 1] 
 
 # Training Setup
 base_dir = os.path.expanduser("~/amelie/gan_mnist")
@@ -85,14 +85,14 @@ discriminator_path = os.path.join(model_dir, "discriminator.pth")
 epoch_path = os.path.join(model_dir, "last_epoch.txt")
 start_epoch = 1
 if os.path.exists(generator_path) and os.path.exists(discriminator_path):
-    print("Lade vortrainierte Modelle...")
+    print("Load pre-trained models...")
     G.load_state_dict(torch.load(generator_path))
     D.load_state_dict(torch.load(discriminator_path))
     if os.path.exists(epoch_path):
         with open(epoch_path, "r") as f:
             start_epoch = int(f.read().strip()) + 1
 else:
-    print("Keine vortrainierten Modelle gefunden. Beginne neues Training...")
+    print("No pre-trained models found. Start new Training...")
 
 criterion = nn.BCELoss()
 G_optimizer = optim.Adam(G.parameters(), lr=0.0002, betas=(0.5, 0.999))
@@ -104,7 +104,7 @@ fixed_noise = torch.randn(100, 100, 1, 1).cuda()
 fixed_labels = torch.eye(10).repeat(10, 1).view(100, 10, 1, 1).cuda()
 
 for epoch in range(start_epoch, start_epoch + num_epochs):
-    print(f"Epoch {epoch} gestartet...")
+    print(f"started epoch {epoch} ...")
     for batch_idx, (real_images, labels) in enumerate(train_loader):
         batch_size = real_images.size(0)
         real_images = real_images.cuda()
@@ -159,4 +159,4 @@ for epoch in range(start_epoch, start_epoch + num_epochs):
 torch.save(G.state_dict(), os.path.join(model_dir, "generator.pth"))
 torch.save(D.state_dict(), os.path.join(model_dir, "discriminator.pth"))
 
-print("Training abgeschlossen und Modelle gespeichert!")
+print("Training done and models safed!")
