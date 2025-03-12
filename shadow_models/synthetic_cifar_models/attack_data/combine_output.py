@@ -6,20 +6,20 @@ from sklearn.model_selection import train_test_split
 OUTPUT_DIR = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models/attack_data"
 COMBINED_OUTPUT_FILE = os.path.join(OUTPUT_DIR, "combined_attack_data.npz")
 
-# Alle Shadow Model Dateien finden
+# find all shadow model files
 shadow_files = [
     os.path.join(OUTPUT_DIR, f) for f in os.listdir(OUTPUT_DIR)
     if f.startswith("shadow_model_") and f.endswith("_attack_data.npz")
 ]
 
-# Initialisierung für die kombinierten Daten
+# Initialize combined data
 all_probabilities = []
 all_labels = []
 all_members = []
 
-# Daten aus allen Shadow Models laden und kombinieren
+# load all data from all shadow models and combine them
 for shadow_file in shadow_files:
-    print(f"Lade Daten aus: {shadow_file}")
+    print(f"Load data from: {shadow_file}")
     data = np.load(shadow_file)
     all_probabilities.append(data["probabilities"])
     all_labels.append(data["labels"])
@@ -30,18 +30,18 @@ all_probabilities = np.vstack(all_probabilities)
 all_labels = np.hstack(all_labels)
 all_members = np.hstack(all_members)
 
-print(f"Gesamtanzahl Datenpunkte: {len(all_members)}")
+print(f"Collected data points: {len(all_members)}")
 
-# Trainings- und Testdaten aufteilen (70% Training, 30% Test)
+# Split Train and test set for attacker model (30 / 70)
 X_train, X_test, y_train, y_test = train_test_split(
-    np.hstack((all_probabilities, all_labels.reshape(-1, 1))),  # Features: Wahrscheinlichkeiten + Labels
-    all_members,  # Ziel: Member/Non-Member
+    np.hstack((all_probabilities, all_labels.reshape(-1, 1))),  # Features= Probabilities + Labels
+    all_members,  # goal: Member/Non-Member
     test_size=0.3,
     random_state=42,
-    stratify=all_members  # Sicherstellen, dass Member/Non-Member-Verhältnis gleich bleibt
+    stratify=all_members  # Make sure member and non-member ratio stays the same
 )
 
-# Daten speichern
+# Safe data
 np.savez(
     COMBINED_OUTPUT_FILE,
     X_train=X_train,
@@ -50,5 +50,5 @@ np.savez(
     y_test=y_test
 )
 
-print(f"Kombinierte Daten gespeichert unter: {COMBINED_OUTPUT_FILE}")
-print(f"Trainingsdaten: {X_train.shape}, Testdaten: {X_test.shape}")
+print(f"Combined data path: {COMBINED_OUTPUT_FILE}")
+print(f"Train Data: {X_train.shape}, Test Data: {X_test.shape}")
