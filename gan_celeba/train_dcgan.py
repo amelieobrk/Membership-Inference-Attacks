@@ -1,3 +1,5 @@
+# training of a dcgan for celebA Pictures
+
 import os
 import time
 import itertools
@@ -75,8 +77,8 @@ class Discriminator(nn.Module):
         return x
 
 
-batch_size = 128 # More stable against model collapse than 256 or 512 
-epochs = 100
+batch_size = 256 # More stable against model collapse than 128 or 512 
+epochs = 70
 img_size = 64
 
 data_dir = '~/amelie/data/preprocessed_celebA'
@@ -98,8 +100,8 @@ train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_work
 G = Generator(128).cuda()
 D = Discriminator(128).cuda()
 BCE_loss = nn.BCELoss()
-G_optimizer = optim.Adam(G.parameters(), lr=0.0003, betas=(0.5, 0.999))
-D_optimizer = optim.Adam(D.parameters(), lr=0.0001, betas=(0.5, 0.999), weight_decay=1e-4)
+G_optimizer = optim.Adam(G.parameters(), lr=0.0004, betas=(0.5, 0.999))
+D_optimizer = optim.Adam(D.parameters(), lr=0.0002, betas=(0.5, 0.999), weight_decay=1e-4)
 
 
 start_epoch = 0
@@ -111,8 +113,8 @@ if os.path.exists(state_file):
         G_losses = training_state["G_losses"]
         D_losses = training_state["D_losses"]
         
-    G.load_state_dict(torch.load(f"{model_save_path}/generator.pth"), weights_only= True)
-    D.load_state_dict(torch.load(f"{model_save_path}/discriminator.pth"), weights_only= True)
+    G.load_state_dict(torch.load(f"{model_save_path}/generator.pth"))
+    D.load_state_dict(torch.load(f"{model_save_path}/discriminator.pth"))
     print(f" Continue training after epoch {start_epoch}!")
 
 # restart training from last epoch
@@ -122,8 +124,8 @@ for epoch in range(start_epoch, epochs):
     loop = tqdm(train_loader, leave=True)
     for i, (imgs, labels) in enumerate(loop):
         imgs, labels = imgs.cuda(), labels.cuda()
-        y_real = torch.full((imgs.size(0), 1), 0.88).cuda()
-        y_fake = torch.full((imgs.size(0), 1), 0.12).cuda()
+        y_real = torch.full((imgs.size(0), 1), 0.9).cuda() # apply label smoothing to make discriminator less dominant
+        y_fake = torch.full((imgs.size(0), 1), 0.1).cuda()
         
         D.zero_grad()
         D_loss = BCE_loss(D(imgs, labels).view(-1, 1), y_real) + BCE_loss(D(G(torch.randn(imgs.size(0), 100, 1, 1).cuda(), labels).detach(), labels).view(-1, 1), y_fake)
@@ -144,7 +146,7 @@ for epoch in range(start_epoch, epochs):
     loop.set_description(f"Epoch [{epoch+1}/{epochs}]")
     loop.set_postfix(D_loss=D_loss.item(), G_loss=G_loss.item())
 
-    # show example images after each epoch
+    # show a grid of example images after each epoch
 
     with torch.no_grad():
         n_images = 25  #5x5 grid
@@ -157,7 +159,6 @@ for epoch in range(start_epoch, epochs):
 
         generated_imgs = G(test_noise, test_labels)
 
-        # set 
         grid_size = int(n_images ** 0.5)  
         fig, axes = plt.subplots(grid_size, grid_size, figsize=(8, 8))
 
@@ -193,11 +194,11 @@ for epoch in range(start_epoch, epochs):
 
     print(f"model and training state safed after epoch {epoch+1} ")
 
-    # Speichere die Loss-Werte
+    # safe loss values
     G_losses.append(G_loss.item())
     D_losses.append(D_loss.item())
 
-    # Plotte die Loss-Kurven nach jeder Epoche
+    # Plot loss curve after each epoch
     plt.figure(figsize=(10, 5))
     plt.plot(range(1, len(G_losses) + 1), G_losses, label="Generator Loss")
     plt.plot(range(1, len(D_losses) + 1), D_losses, label="Discriminator Loss")
@@ -210,7 +211,6 @@ for epoch in range(start_epoch, epochs):
     plt.close()
 
 
-torch.save(G.state_dict(), "/home/lab24inference/amelie/gan_celeba/generator.pth")
-torch.save(D.state_dict(), "/home/lab24inference/amelie/gan_celeba/discriminator.pth")
+
 
 

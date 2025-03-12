@@ -8,23 +8,26 @@ import json
 import os
 import torch.nn.functional as F
 
+# Define a convolutional neural network for MNIST classification
 class MNISTConvNet(nn.Module):
     def __init__(self, depth=1, regularization=None, reg_constant=0.01):
         super(MNISTConvNet, self).__init__()
         self.conv_layers = nn.Sequential(
-            nn.Conv2d(1, 32, 3, padding=1),
+            nn.Conv2d(1, 32, 3, padding=1), # 3x3 convolution, 32 filters
             nn.ReLU(),
             nn.Conv2d(32, 32, 3),
             nn.ReLU(),
             nn.MaxPool2d(2, 2),
-            nn.Conv2d(32, 64, 3, padding=1),
+            nn.Conv2d(32, 64, 3, padding=1), # 3x3 convolution, 64 filters
             nn.ReLU(),
             nn.Conv2d(64, 64, 3),
             nn.ReLU(),
             nn.MaxPool2d(2, 2)
         )
+
+        # Dropout for regularization (optional!!)
         self.dropout = nn.Dropout(0.25 if regularization == 'dropout' else 0.0)
-        # Update the number of input features to 64 * 6 * 6 = 2304
+        # Fully connected layers for classification
         self.fc1 = nn.Linear(64 * 6 * 6, 512)
         self.fc2 = nn.Linear(512, 10)
 
@@ -37,28 +40,27 @@ class MNISTConvNet(nn.Module):
         x = self.fc2(x)
         return x
 
-
+#load MNIST data from .npz files
 def load_data(path):
     data = np.load(path)
-    # Ursprünglich war hier ein Fehler, der eine zusätzliche Dimension hinzugefügt hat
-    images = torch.tensor(data['images']).float()  # Entferne `.unsqueeze(1)` wenn es nicht benötigt wird
+    
+    images = torch.tensor(data['images']).float()  
     labels = torch.tensor(data['labels']).long()
-    # Stelle sicher, dass die Bilder die richtige Dimension haben
+    # Ensure images have correct shape [N, 1, H, W] for convolutional layers
     if images.dim() == 3:  # [N, H, W]
-        images = images.unsqueeze(1)  # Füge die Kanaldimension hinzu [N, C, H, W]
+        images = images.unsqueeze(1)  # add channel dimension
     return images, labels
 
 
-import os
 
 def train_model(model, train_loader, test_loader, device, model_id, epochs=10):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     models_dir = '/home/lab24inference/amelie/shadow_models/mnist_models/models'
-    os.makedirs(models_dir, exist_ok=True)  # Stellt sicher, dass das Verzeichnis existiert
+    os.makedirs(models_dir, exist_ok=True)  
     progress_path = os.path.join(models_dir, f'progress_model_{model_id}.json')
 
-    # Load progress if exists
+    # Load previous training progress if exists
     if os.path.exists(progress_path):
         with open(progress_path, 'r') as f:
             progress = json.load(f)
@@ -67,22 +69,24 @@ def train_model(model, train_loader, test_loader, device, model_id, epochs=10):
         progress = {'epochs': 0, 'train_accuracy': [], 'test_accuracy': []}
         start_epoch = 0
 
+    #Training loop
     for epoch in range(start_epoch, epochs):
         model.train()
         correct, total = 0, 0
         for data, target in train_loader:
             data, target = data.to(device), target.to(device)
-            optimizer.zero_grad()
+            optimizer.zero_grad() #reset gradients
             output = model(data)
             loss = criterion(output, target)
-            loss.backward()
+            loss.backward() 
             optimizer.step()
-            _, predicted = torch.max(output.data, 1)
+            _, predicted = torch.max(output.data, 1) #get predicted labels
             total += target.size(0)
             correct += (predicted == target).sum().item()
         train_acc = 100 * correct / total
         progress['train_accuracy'].append(train_acc)
 
+        #evaluate on test dataset
         model.eval()
         correct, total = 0, 0
         with torch.no_grad():
@@ -108,7 +112,7 @@ def train_model(model, train_loader, test_loader, device, model_id, epochs=10):
 
     return progress['train_accuracy'], progress['test_accuracy']
 
-
+#plot training accuracy over epochs
 def plot_accuracy(train_acc, test_acc, model_id):
     plt.figure()
     plt.plot(train_acc, label='Train Accuracy')
@@ -129,11 +133,17 @@ def main():
         test_data_path = f'/home/lab24inference/amelie/shadow_models_data/fake_mnist/shadow_model_{i}/test/test.npz'
         train_images, train_labels = load_data(train_data_path)
         test_images, test_labels = load_data(test_data_path)
+
+         # Create PyTorch datasets
         train_dataset = TensorDataset(train_images, train_labels)
         test_dataset = TensorDataset(test_images, test_labels)
+
+         # Create DataLoaders for batch processing
         train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=32)
         test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=32)
-        model = MNISTConvNet(regularization='dropout').to(device)
+
+    
+        model = MNISTConvNet(regularization='dropout').to(device) #use dropout!
         train_acc, test_acc = train_model(model, train_loader, test_loader, device, i)
         plot_accuracy(train_acc, test_acc, i)
 

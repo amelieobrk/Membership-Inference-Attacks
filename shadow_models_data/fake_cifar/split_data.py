@@ -1,4 +1,4 @@
-### Split synthetic Cifar-10 data in test and train in a 50/50 Ratio for all 30 shadow models
+### Split synthetic Cifar-10 data in test and train in a 50/50 Ratio for all shadow models
 
 
 import os
@@ -17,7 +17,7 @@ if not os.path.exists(output_path):
 #Train and Test Split
 train_ratio = 0.5  # Ratio = 50/50 so that the attacker model gets an equal amount of members and non-members in its training and test data
 
-# Daten laden
+# Load data
 data_files = [f for f in os.listdir(input_path) if f.endswith(".npz")]  # Load all Batches
 all_images = []
 all_labels = []

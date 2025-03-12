@@ -1,3 +1,4 @@
+#Extract confidence scores from MNIST shadow models, combine them, split into train/test sets (70/30) and save the attack dataset.
 import os
 import torch
 import numpy as np
@@ -23,23 +24,23 @@ class MNISTConvNet(nn.Module):
     def __init__(self):
         super(MNISTConvNet, self).__init__()
         self.conv_layers = nn.Sequential(
-            nn.Conv2d(1, 32, 3, padding=1),
+            nn.Conv2d(1, 32, 3, padding=1), #First convolutional layer
             nn.ReLU(),
-            nn.Conv2d(32, 32, 3),
+            nn.Conv2d(32, 32, 3), #Second layer
             nn.ReLU(),
             nn.MaxPool2d(2, 2),
-            nn.Conv2d(32, 64, 3, padding=1),
+            nn.Conv2d(32, 64, 3, padding=1), #third layer
             nn.ReLU(),
-            nn.Conv2d(64, 64, 3),
+            nn.Conv2d(64, 64, 3), #fourth layer
             nn.ReLU(),
-            nn.MaxPool2d(2, 2)
+            nn.MaxPool2d(2, 2) #downsampling
         )
-        self.fc1 = nn.Linear(64 * 6 * 6, 512)
-        self.fc2 = nn.Linear(512, 10)
+        self.fc1 = nn.Linear(64 * 6 * 6, 512) # Fully connected layer
+        self.fc2 = nn.Linear(512, 10) # Output layer (10 classes for MNIST)
 
     def forward(self, x):
-        x = self.conv_layers(x)
-        x = x.view(x.size(0), -1)
+        x = self.conv_layers(x)  # Pass input through convolutional layers
+        x = x.view(x.size(0), -1) # Flatten before passing into FC layers
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
@@ -49,7 +50,7 @@ def load_data(path):
     data = np.load(path)
     images = torch.tensor(data['images']).float()
     labels = torch.tensor(data['labels']).long()
-    if images.dim() == 3:
+    if images.dim() == 3: # Ensure images have the correct shape (Batch, 1, Height, Width)
         images = images.unsqueeze(1)
     return images, labels
 
@@ -65,26 +66,28 @@ def extract_confidence_scores(shadow_id, train_loader, test_loader):
     model.load_state_dict(torch.load(model_path))
     model.eval()
 
+ # Function to get confidence scores for a given dataset
     def get_confidences(loader, member_label):
         probabilities, labels, members = [], [], []
-        with torch.no_grad():
+        with torch.no_grad(): # Disable gradient computation for efficiency
             for inputs, targets in loader:
                 inputs = inputs.to(device)
-                outputs = model(inputs)
-                probs = F.softmax(outputs, dim=1).cpu().numpy()  # Alle Klassenwahrscheinlichkeiten
+                outputs = model(inputs) # Forward pass
+                probs = F.softmax(outputs, dim=1).cpu().numpy()  # All class probabilities
                 probabilities.append(probs)
                 labels.append(targets.numpy())
                 members.extend([member_label] * len(targets))
         
         return np.vstack(probabilities), np.hstack(labels), np.array(members)
-
+    
+        # Extract confidence scores for training (members) and testing (non-members) datasets
     train_conf, train_labels, train_members = get_confidences(train_loader, member_label=1)
     test_conf, test_labels, test_members = get_confidences(test_loader, member_label=0)
 
-    # Debugging: Überprüfung der Dimensionen
+    # Debugging: check dimensions
     print(f"Shadow Model {shadow_id} - Train conf shape: {train_conf.shape}, Test conf shape: {test_conf.shape}")
 
-    # Konkateniere Trainings- und Testdaten
+    # Concatenate training and test data into a single dataset
     confidences = np.concatenate((train_conf, test_conf), axis=0)
     labels = np.concatenate((train_labels, test_labels), axis=0)
     members = np.concatenate((train_members, test_members), axis=0)
@@ -101,7 +104,7 @@ def main():
 
         if not os.path.exists(train_path) or not os.path.exists(test_path):
             print(f"Data for Shadow Model {shadow_id} not found. Skipping.")
-            continue
+            continue # Skip this model if the dataset is missing
 
         train_images, train_labels = load_data(train_path)
         test_images, test_labels = load_data(test_path)
@@ -124,7 +127,7 @@ def main():
         print("No confidence scores collected. Exiting.")
         return
 
-    # Alle Wahrscheinlichkeiten in ein 2D-Array umwandeln
+    # Stack all extracted confidence scores, labels, and membership indicators
     all_probabilities = np.vstack(all_probabilities)  # Shape (N, 10)
     all_labels = np.hstack(all_labels)  # Shape (N,)
     all_members = np.hstack(all_members)  # Shape (N,)
@@ -134,7 +137,7 @@ def main():
     print(f"First 5 labels: {all_labels[:5]}")
     print(f"First 5 membership labels: {all_members[:5]}")
 
-    # Split into train and test for the attacker model
+    # Split into train and test for the attacker model (70/30)
     X_train, X_test, y_train, y_test = train_test_split(
         np.hstack((all_probabilities, all_labels.reshape(-1, 1))),  # Wahrscheinlichkeiten + Labels
         all_members,  # Ziel: Member/Non-Member

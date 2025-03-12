@@ -1,8 +1,8 @@
+#Load and combine attack data from all shadow models, split it into train and test sets, and save the final dataset for training the attacker model
 import os
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-# Verzeichnisse und Konfiguration
 OUTPUT_DIR = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models/attack_data"
 COMBINED_OUTPUT_FILE = os.path.join(OUTPUT_DIR, "combined_attack_data.npz")
 
@@ -25,7 +25,7 @@ for shadow_file in shadow_files:
     all_labels.append(data["labels"])
     all_members.append(data["members"])
 
-# Kombinierte Daten erstellen
+# Create combined data
 all_probabilities = np.vstack(all_probabilities)
 all_labels = np.hstack(all_labels)
 all_members = np.hstack(all_members)
@@ -35,10 +35,10 @@ print(f"Collected data points: {len(all_members)}")
 # Split Train and test set for attacker model (30 / 70)
 X_train, X_test, y_train, y_test = train_test_split(
     np.hstack((all_probabilities, all_labels.reshape(-1, 1))),  # Features= Probabilities + Labels
-    all_members,  # goal: Member/Non-Member
+    all_members,  
     test_size=0.3,
     random_state=42,
-    stratify=all_members  # Make sure member and non-member ratio stays the same
+    stratify=all_members  # Make sure member and non-member ratio stays the same over test and train set
 )
 
 # Safe data

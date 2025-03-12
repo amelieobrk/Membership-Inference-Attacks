@@ -1,3 +1,4 @@
+#Load and evaluate shadow models, extract probabilities for train and test data, filter duplicate entries, and save attack data.
 import os
 import torch
 import numpy as np
@@ -7,18 +8,17 @@ import torchvision.transforms as transforms
 from torch import nn
 from PIL import Image
 
-# Verzeichnis-Konfiguration
 BASE_DIR = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models"
 SHADOW_DATA_DIR = "/home/lab24inference/amelie/shadow_models_data/fake_cifar/shadow_data"
 MODEL_SAVE_DIR = os.path.join(BASE_DIR, "models")
 OUTPUT_DIR = os.path.join(BASE_DIR, "attack_data")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Prüfen, ob GPU verfügbar ist
+# check if gpu is available
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-# Shadow Model Definition
+# shadow model definition
 class ShadowModel(nn.Module):
     def __init__(self):
         super(ShadowModel, self).__init__()
@@ -35,18 +35,18 @@ class ShadowModel(nn.Module):
             nn.Flatten(),
             nn.Linear(64 * 8 * 8, 128),
             nn.Tanh(),
-            nn.Linear(128, 10)  # Keine Softmax hier
+            nn.Linear(128, 10)  # ! No softmax here (CrossEntropyLoss used)
         )
     def forward(self, x):
         x = self.conv_layers(x)
         x = self.fc_layers(x)
         return x
 
-# Dataset-Klasse
+# Dataset-class
 class ShadowDataset(Dataset):
     def __init__(self, data_path):
         data = np.load(data_path)
-        self.images = data["images"]
+        self.images = data["images"] 
         self.labels = data["labels"]
 
     def __len__(self):
@@ -61,7 +61,7 @@ class ShadowDataset(Dataset):
         ])
         return transform(image), label
 
-# Evaluierung der Modelle
+# Evaluate models
 def evaluate_model(model, test_loader):
     correct = 0
     total = 0
@@ -76,12 +76,12 @@ def evaluate_model(model, test_loader):
     print(f"Test Accuracy: {accuracy:.2f}%")
     return accuracy
 
-# Extrahiere Wahrscheinlichkeiten und Labels
+#extract probabilities and labels
 def extract_probabilities(shadow_id, train_loader, test_loader):
     model = ShadowModel().to(device)
     model_path = os.path.join(MODEL_SAVE_DIR, f"shadow_model_{shadow_id}.pth")
 
-    # Lade gespeichertes Shadow Model
+    # Load safed shadow model
     if not os.path.exists(model_path):
         print(f"Model {shadow_id} not found. Skipping.")
         return
@@ -89,7 +89,7 @@ def extract_probabilities(shadow_id, train_loader, test_loader):
     model.load_state_dict(torch.load(model_path))
     model.eval()
 
-    # Evaluierung des Modells
+    # Evaluate models
     print(f"Evaluating Shadow Model {shadow_id}...")
     evaluate_model(model, test_loader)
 
@@ -104,8 +104,8 @@ def extract_probabilities(shadow_id, train_loader, test_loader):
                 outputs = model(inputs)
                 probs = F.softmax(outputs, dim=1).cpu().numpy()
 
-                # Überprüfung der Summe der Wahrscheinlichkeiten
-                assert np.allclose(probs.sum(axis=1), 1.0), "Wahrscheinlichkeiten summieren sich nicht zu 1!"
+                # Check if sum of probabilities = 1
+                assert np.allclose(probs.sum(axis=1), 1.0), "Probabilities do not sum up to 1!"
 
                 probabilities.append(probs)
                 labels.append(targets.numpy())
@@ -113,24 +113,16 @@ def extract_probabilities(shadow_id, train_loader, test_loader):
 
         return np.vstack(probabilities), np.hstack(labels), np.array(member_labels)
 
-    # Wahrscheinlichkeiten für Trainings- und Testdaten berechnen
+    #compute confidence scores for train and test
     train_probs, train_labels, train_members = get_outputs(train_loader, member_label=1)
     test_probs, test_labels, test_members = get_outputs(test_loader, member_label=0)
 
-    # Debugging-Ausgabe: Beispielwahrscheinlichkeiten
-    print("Beispiele für Trainingsdaten (Members):")
-    for i in range(min(5, len(train_probs))):
-        print(f"Train Sample {i+1}: Probabilities: {train_probs[i]}, Label: {train_labels[i]}")
-
-    print("Beispiele für Testdaten (Non-Members):")
-    for i in range(min(5, len(test_probs))):
-        print(f"Test Sample {i+1}: Probabilities: {test_probs[i]}, Label: {test_labels[i]}")
-
+    
     probabilities = np.vstack((train_probs, test_probs))
     labels = np.hstack((train_labels, test_labels))
     members = np.hstack((train_members, test_members))
 
-    # Entferne problematische Duplikate
+    # Delete duplicates
     unique_data = {}
     filtered_probs = []
     filtered_labels = []
@@ -144,7 +136,7 @@ def extract_probabilities(shadow_id, train_loader, test_loader):
             filtered_labels.append(label)
             filtered_members.append(member)
         elif unique_data[prob_tuple] != member:
-            # Problematische Duplikate überspringen
+            # Skip dublicates
             print(f"Konflikt gefunden bei Wahrscheinlichkeiten {prob_tuple} (Mitgliedschaft: {unique_data[prob_tuple]} vs {member}). Überspringe.")
 
     probabilities = np.array(filtered_probs)
@@ -155,18 +147,14 @@ def extract_probabilities(shadow_id, train_loader, test_loader):
     print(f"Final labels shape: {labels.shape}")
     print(f"Final members shape: {members.shape}")
 
-    # Ausgabe von Beispieldaten zur Überprüfung
-    print("Beispiele für Wahrscheinlichkeitsvektoren und zugehörige Labels/Members:")
-    for i in range(min(50, len(probabilities))):
-        print(f"Sample {i+1}: Probabilities: {probabilities[i]}, Label: {labels[i]}, Member: {members[i]}")
-
-    # Speichern
+    
+    # Safe results
     output_path = os.path.join(OUTPUT_DIR, f"shadow_model_{shadow_id}_attack_data.npz")
     np.savez(output_path, probabilities=probabilities, labels=labels, members=members)
     print(f"Attack data for Shadow Model {shadow_id} saved to {output_path}.")
 
 if __name__ == "__main__":
-    for shadow_id in range(1,31):  # Shadow Models 1 bis 30
+    for shadow_id in range(1,31):  # Shadow Models Nr 1 - 30
         train_data_path = os.path.join(SHADOW_DATA_DIR, f"shadow_model_{shadow_id}/train/train_data.npz")
         test_data_path = os.path.join(SHADOW_DATA_DIR, f"shadow_model_{shadow_id}/test/test_data.npz")
 
