@@ -19,10 +19,8 @@ def compute_top2_diff(probabilities):
 def compute_entropy(probabilities):
     return entropy(probabilities.T, base=2)
 
-# Function to compute Likelihood Ratio
-def compute_likelihood_ratio(probabilities):
-    sorted_probs = np.sort(probabilities, axis=1)
-    return sorted_probs[:, -1] / (sorted_probs[:, -2] + 1e-10)  # Avoid division by zero
+
+
 
 # Function to compute Variance of Confidence Scores
 def compute_variance(probabilities):
@@ -32,9 +30,6 @@ def compute_variance(probabilities):
 def compute_gini(probabilities):
     return 1 - np.sum(probabilities**2, axis=1)
 
-# Function to compute Max-Min Confidence Spread
-def compute_confidence_spread(probabilities):
-    return np.max(probabilities, axis=1) - np.min(probabilities, axis=1)
 
 # Load data
 data = np.load(DATA_FILE)
@@ -42,13 +37,16 @@ X_train = data["X_train"]
 y_train = data["y_train"]
 probability_matrix = X_train[:, :-1]
 
+
+
+
+
 # Compute additional metrics
 computed_top2_diff = compute_top2_diff(probability_matrix)
 prediction_entropy = compute_entropy(probability_matrix)
-likelihood_ratio = compute_likelihood_ratio(probability_matrix)
 variance_confidence = compute_variance(probability_matrix)
 gini_index = compute_gini(probability_matrix)
-confidence_spread = compute_confidence_spread(probability_matrix)
+confidence_scores = np.max(probability_matrix, axis=1)
 
 #Compute distribution of members and non members
 plt.figure(figsize=(8, 6))
@@ -64,6 +62,16 @@ plt.xlabel("class and dataset")
 plt.savefig(os.path.join(ANALYSIS_DIR, "members_nonmembers_distribution.png"))
 plt.show()
 
+# Plot Confidence Score Distribution
+plt.figure(figsize=(8,6))
+plt.hist(confidence_scores[y_train == 1], bins=50, alpha=0.5, label="Members", color="blue", density=True)
+plt.hist(confidence_scores[y_train == 0], bins=50, alpha=0.5, label="Non-Members", color="red", density=True)
+plt.title("Feature Distribution: Confidence Score")
+plt.xlabel("Confidence Score")
+plt.ylabel("Density")
+plt.legend()
+plt.savefig(os.path.join(ANALYSIS_DIR, "confidence_score_distribution.png"))
+plt.show()
 
 # Plot Variance of Confidence Scores Distribution
 plt.figure(figsize=(8,6))
@@ -87,15 +95,15 @@ plt.legend()
 plt.savefig(os.path.join(ANALYSIS_DIR, "gini_index_distribution.png"))
 plt.show()
 
-# Plot Max-Min Confidence Spread Distribution
+# Plot Prediction Entropy Distribution
 plt.figure(figsize=(8,6))
-plt.hist(confidence_spread[y_train == 1], bins=50, alpha=0.5, label="Members", color="blue", density=True)
-plt.hist(confidence_spread[y_train == 0], bins=50, alpha=0.5, label="Non-Members", color="red", density=True)
-plt.title("Max-Min Confidence Spread Distribution")
-plt.xlabel("Confidence Spread")
+plt.hist(prediction_entropy[y_train == 1], bins=50, alpha=0.5, label="Members", color="blue", density=True)
+plt.hist(prediction_entropy[y_train == 0], bins=50, alpha=0.5, label="Non-Members", color="red", density=True)
+plt.title("Prediction Entropy Distribution")
+plt.xlabel("Entropy")
 plt.ylabel("Density")
 plt.legend()
-plt.savefig(os.path.join(ANALYSIS_DIR, "confidence_spread_distribution.png"))
+plt.savefig(os.path.join(ANALYSIS_DIR, "prediction_entropy_distribution.png"))
 plt.show()
 
 # Compute statistics
@@ -105,11 +113,7 @@ print("Mean (Non-Members):", np.mean(prediction_entropy[y_train == 0]))
 print("Variance (Members):", np.var(prediction_entropy[y_train == 1]))
 print("Variance (Non-Members):", np.var(prediction_entropy[y_train == 0]))
 
-print("Statistics for Likelihood Ratio:")
-print("Mean (Members):", np.mean(likelihood_ratio[y_train == 1]))
-print("Mean (Non-Members):", np.mean(likelihood_ratio[y_train == 0]))
-print("Variance (Members):", np.var(likelihood_ratio[y_train == 1]))
-print("Variance (Non-Members):", np.var(likelihood_ratio[y_train == 0]))
+
 
 print("Statistics for Variance of Confidence Scores:")
 print("Mean (Members):", np.mean(variance_confidence[y_train == 1]))
@@ -119,8 +123,5 @@ print("Statistics for Gini Index:")
 print("Mean (Members):", np.mean(gini_index[y_train == 1]))
 print("Mean (Non-Members):", np.mean(gini_index[y_train == 0]))
 
-print("Statistics for Confidence Spread:")
-print("Mean (Members):", np.mean(confidence_spread[y_train == 1]))
-print("Mean (Non-Members):", np.mean(confidence_spread[y_train == 0]))
 
 print("Analysis completed. Results saved to:", ANALYSIS_DIR)

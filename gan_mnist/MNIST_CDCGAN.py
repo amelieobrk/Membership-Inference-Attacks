@@ -1,3 +1,5 @@
+#Train a cGan on the MNIST dataset
+
 import os
 import time
 import matplotlib.pyplot as plt
@@ -9,47 +11,50 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
+
+#define generator
 class Generator(nn.Module):
     def __init__(self, d=128):
         super(Generator, self).__init__()
-        self.deconv1 = nn.ConvTranspose2d(100, d * 4, 4, 1, 0)  # [Batch_size, d*4, 4, 4]
+        self.deconv1 = nn.ConvTranspose2d(100, d * 4, 4, 1, 0)  # Input: Noise vector (100x1x1)
         self.deconv1_bn = nn.BatchNorm2d(d * 4)
-        self.deconv2 = nn.ConvTranspose2d(d * 4 + 10, d * 2, 4, 2, 1)  # [Batch_size, d*2, 8, 8]
+        self.deconv2 = nn.ConvTranspose2d(d * 4 + 10, d * 2, 4, 2, 1)   # Label conditioning (10 channels for class info)
         self.deconv2_bn = nn.BatchNorm2d(d * 2)
-        self.deconv3 = nn.ConvTranspose2d(d * 2, d, 4, 2, 1)  # [Batch_size, d, 16, 16]
+        self.deconv3 = nn.ConvTranspose2d(d * 2, d, 4, 2, 1)  
         self.deconv3_bn = nn.BatchNorm2d(d)
-        self.deconv4 = nn.ConvTranspose2d(d, 1, 4, 2, 1)  # [Batch_size, 1, 32, 32]
+        self.deconv4 = nn.ConvTranspose2d(d, 1, 4, 2, 1)   # Output: 32x32 grayscale image
 
     def forward(self, input, labels):
-        x = F.relu(self.deconv1_bn(self.deconv1(input)))  # [Batch_size, d*4, 4, 4]
-        labels = labels.expand(-1, -1, x.size(2), x.size(3))  # [Batch_size, 10, 4, 4]
-        x = torch.cat([x, labels], dim=1)  # [Batch_size, d*4 + 10, 4, 4]
-        x = F.relu(self.deconv2_bn(self.deconv2(x)))  # [Batch_size, d*2, 8, 8]
-        x = F.relu(self.deconv3_bn(self.deconv3(x)))  # [Batch_size, d, 16, 16]
-        x = torch.tanh(self.deconv4(x))  # [Batch_size, 1, 32, 32]
+        x = F.relu(self.deconv1_bn(self.deconv1(input)))  # Expand noise input
+        labels = labels.expand(-1, -1, x.size(2), x.size(3))  # Expand labels to match feature size
+        x = torch.cat([x, labels], dim=1)  # Concatenate labels with latent features
+        x = F.relu(self.deconv2_bn(self.deconv2(x)))  
+        x = F.relu(self.deconv3_bn(self.deconv3(x))) 
+        x = torch.tanh(self.deconv4(x))  # Normalize output between -1 and 1
         return x
 
+#define discriminator
 class Discriminator(nn.Module):
     def __init__(self, d=128):
         super(Discriminator, self).__init__()
-        self.conv1 = nn.Conv2d(1 + 10, d, 4, 2, 1)  # [Batch_size, d, 16, 16]
-        self.conv2 = nn.Conv2d(d, d * 2, 4, 2, 1)   # [Batch_size, 2d, 8, 8]
+        self.conv1 = nn.Conv2d(1 + 10, d, 4, 2, 1)  # Input: 32x32 MNIST image + class label
+        self.conv2 = nn.Conv2d(d, d * 2, 4, 2, 1)   
         self.conv2_bn = nn.BatchNorm2d(d * 2)
-        self.conv3 = nn.Conv2d(d * 2, d * 4, 4, 2, 1)  # [Batch_size, 4d, 4, 4]
-        self.conv4 = nn.Conv2d(d * 4, 1, 4, 1, 0)   # [Batch_size, 1, 1, 1]
+        self.conv3 = nn.Conv2d(d * 2, d * 4, 4, 2, 1)  
+        self.conv4 = nn.Conv2d(d * 4, 1, 4, 1, 0)   # Output: probability score (real or fake)
 
     def forward(self, input, labels):
-        labels = labels.expand(-1, -1, input.size(2), input.size(3))
-        x = torch.cat([input, labels], dim=1)
+        labels = labels.expand(-1, -1, input.size(2), input.size(3)) # Expand labels to match feature maps
+        x = torch.cat([input, labels], dim=1)   # Concatenate labels with input image
         x = F.leaky_relu(self.conv1(x), 0.2)
-       # print(f"Nach conv1: {x.size()}")
+      
         x = F.leaky_relu(self.conv2_bn(self.conv2(x)), 0.2)
-       # print(f"Nach conv2: {x.size()}")
+      
         x = F.leaky_relu(self.conv3(x), 0.2)
-       # print(f"Nach conv3: {x.size()}")
+       
         x = torch.sigmoid(self.conv4(x))
-        print(f"Nach conv4: {x.size()}")
-        return x.view(-1, 1)  #make sure output is: bBatch_size, 1] 
+        print(f"Nach conv4: {x.size()}") # Probability output
+        return x.view(-1, 1)  #Reshape for binary classification
 
 # Training Setup
 base_dir = os.path.expanduser("~/amelie/gan_mnist")
@@ -94,12 +99,14 @@ if os.path.exists(generator_path) and os.path.exists(discriminator_path):
 else:
     print("No pre-trained models found. Start new Training...")
 
+
+# define loss function (BCELoss) and adam optimizer
 criterion = nn.BCELoss()
 G_optimizer = optim.Adam(G.parameters(), lr=0.0002, betas=(0.5, 0.999))
 D_optimizer = optim.Adam(D.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
 # Training Loop
-num_epochs = 100
+num_epochs = 100 #sufficient for mnist
 fixed_noise = torch.randn(100, 100, 1, 1).cuda()
 fixed_labels = torch.eye(10).repeat(10, 1).view(100, 10, 1, 1).cuda()
 

@@ -42,7 +42,7 @@ class ShadowModel(nn.Module):
         x = self.fc_layers(x)
         return x
 
-# Dataset-class
+# Dataset-classs
 class ShadowDataset(Dataset):
     def __init__(self, data_path):
         data = np.load(data_path)

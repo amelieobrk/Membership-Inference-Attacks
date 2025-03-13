@@ -38,7 +38,7 @@ assert len(all_images) % num_shadow_models == 0, "It must be possible to distrib
 images_split = np.array_split(all_images, num_shadow_models) ## make sure that all data is split into disjoint sets and stored in separate locations
 labels_split = np.array_split(all_labels, num_shadow_models)
 
-# Split data in test and train for every shadow models
+# Split data in test and train for every shadow model
 for i in range(num_shadow_models):
 
     images_train, images_test, labels_train, labels_test = train_test_split(

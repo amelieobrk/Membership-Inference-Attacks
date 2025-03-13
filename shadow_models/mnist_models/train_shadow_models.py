@@ -1,3 +1,4 @@
+#Train shadow models on MNIST dataset
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -50,6 +51,7 @@ def load_data(path):
     if images.dim() == 3:  # [N, H, W]
         images = images.unsqueeze(1)  # add channel dimension
     return images, labels
+
 
 
 

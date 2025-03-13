@@ -38,6 +38,8 @@ class Generator(nn.Module):
         self.deconv4 = nn.ConvTranspose2d(d * 2, d, 4, 2, 1)
         self.deconv4_bn = nn.BatchNorm2d(d)
         self.deconv5 = nn.ConvTranspose2d(d, 3, 4, 2, 1)
+        self.dropout = nn.Dropout(0.2)# dropout -> Don't make discriminator too dominant
+
 
     def forward(self, noise, labels):
         label_embedding = self.label_emb(labels).view(-1, 100, 1, 1)
@@ -46,6 +48,7 @@ class Generator(nn.Module):
         x = F.relu(self.deconv2_bn(self.deconv2(x)))
         x = F.relu(self.deconv3_bn(self.deconv3(x)))
         x = F.relu(self.deconv4_bn(self.deconv4(x)))
+        x = self.dropout(x)
         x = torch.tanh(self.deconv5(x))
         return x
 
@@ -78,7 +81,7 @@ class Discriminator(nn.Module):
 
 
 batch_size = 256 # More stable against model collapse than 128 or 512 
-epochs = 70
+epochs = 50
 img_size = 64
 
 data_dir = '~/amelie/data/preprocessed_celebA'
@@ -101,7 +104,7 @@ G = Generator(128).cuda()
 D = Discriminator(128).cuda()
 BCE_loss = nn.BCELoss()
 G_optimizer = optim.Adam(G.parameters(), lr=0.0004, betas=(0.5, 0.999))
-D_optimizer = optim.Adam(D.parameters(), lr=0.0002, betas=(0.5, 0.999), weight_decay=1e-4)
+D_optimizer = optim.Adam(D.parameters(), lr=0.0002, betas=(0.5, 0.999), weight_decay=1e-3)
 
 
 start_epoch = 0

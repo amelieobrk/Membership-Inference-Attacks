@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt
 
 # Configuration
 DATA_FILE = "/home/lab24inference/amelie/shadow_models/mnist_models/attack_data/combined_attack_data.npz"
-MODEL_SAVE_DIR = "/home/lab24inference/amelie/attacker_model/mnist"
+MODEL_SAVE_DIR = "/home/lab24inference/amelie/attacker_model/mnist/models"
+RESULTS_DIR = "/home/lab24inference/amelie/attacker_model/mnist/results"
 os.makedirs(MODEL_SAVE_DIR, exist_ok=True)
-PLOTS_DIR = os.path.join(MODEL_SAVE_DIR, "plots")
-os.makedirs(PLOTS_DIR, exist_ok=True)
-RESULTS_FILE = os.path.join(MODEL_SAVE_DIR, "results.json")
+os.makedirs(RESULTS_DIR, exist_ok=True)  # 
+RESULTS_FILE = os.path.join(RESULTS_DIR, "attacker_model_results.json")
 
 # Dataset class
 class AttackerDataset(Dataset):
@@ -140,7 +140,7 @@ for epoch in range(epochs):
     print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_losses[-1]:.4f}, Test Loss: {test_losses[-1]:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}, Accuracy: {accuracy:.4f}")
 
 # Save model
-model_path = os.path.join(MODEL_SAVE_DIR, "global_attacker_model.pth")
+model_path = os.path.join(MODEL_SAVE_DIR, "attacker_model.pth")
 torch.save(model.state_dict(), model_path)
 print(f"Global Attacker Model saved to {model_path}")
 
@@ -157,27 +157,6 @@ with open(RESULTS_FILE, "w") as f:
     json.dump(results, f, indent=4)
 print(f"Results saved to {RESULTS_FILE}")
 
-# Save plots
-plt.figure()
-plt.plot(range(1, epochs + 1), train_losses, label='Train Loss')
-plt.plot(range(1, epochs + 1), test_losses, label='Test Loss')
-plt.title("Global Model Loss")
-plt.xlabel("Epoch")
-plt.ylabel("Loss")
-plt.legend()
-plt.savefig(os.path.join(PLOTS_DIR, "global_loss.png"))
-plt.close()
 
-plt.figure()
-plt.plot(range(1, epochs + 1), test_precisions, label='Precision')
-plt.plot(range(1, epochs + 1), test_recalls, label='Recall')
-plt.plot(range(1, epochs + 1), test_f1_scores, label='F1 Score')
-plt.plot(range(1, epochs + 1), test_accuracies, label='Accuracy')
-plt.title("Global Model Metrics")
-plt.xlabel("Epoch")
-plt.ylabel("Value")
-plt.legend()
-plt.savefig(os.path.join(PLOTS_DIR, "global_metrics.png"))
-plt.close()
 
 print("Training completed.")

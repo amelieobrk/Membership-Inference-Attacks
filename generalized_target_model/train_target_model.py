@@ -1,3 +1,5 @@
+#Train target model with good generalizability on CIfAr-10 dataset 
+
 import torchvision
 import torchvision.transforms as transforms
 import torch
@@ -12,17 +14,17 @@ import torchvision.models as models
 from torchvision.models import resnet18
 
 
-# Verzeichnis in deinem gemounteten Ordner
+
 BASE_DIR = "/home/lab24inference/amelie/target_model/"
 MODEL_SAVE_PATH = os.path.join(BASE_DIR, "target_model.pth")
 EPOCH_TRACKER_PATH = os.path.join(BASE_DIR, "epoch_tracker.json")
 TRAINING_PLOT_PATH = os.path.join(BASE_DIR, "training_plot.png")
 
-# Prüfe, ob GPU verfügbar ist
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-# Daten vorbereiten
+# Apply Augmentation 
 def load_data():
     transform_train = transforms.Compose([
         transforms.RandomHorizontalFlip(),
@@ -45,7 +47,7 @@ def load_data():
 trainloader, testloader = load_data()
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
-# Zielmodell definieren
+# Define the target model
 class TargetModel(nn.Module):
     def __init__(self):
         super(TargetModel, self).__init__()
@@ -75,48 +77,48 @@ class TargetModel(nn.Module):
 
 model = TargetModel().to(device)
 
-# Loss-Funktion und Optimierer definieren
+# define loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=70, gamma=0.1)  # Lernrate nach 50 Epochen anpassen
 
-# Lade gespeichertes Modell und Epocheninformationen
+# Load previously saved model and training progress
 def load_checkpoint():
     if os.path.exists(MODEL_SAVE_PATH):
-        print("Lade gespeichertes Modell...")
+        print("Load saved model...")
         model.load_state_dict(torch.load(MODEL_SAVE_PATH))
     if os.path.exists(EPOCH_TRACKER_PATH):
         with open(EPOCH_TRACKER_PATH, "r") as f:
             return json.load(f).get("epochs_trained", 0)
     return 0
 
-# Speichere Modell und Anzahl der trainierten Epochen
+# Save model and training progress
 def save_checkpoint(epochs_trained):
     torch.save(model.state_dict(), MODEL_SAVE_PATH)
     with open(EPOCH_TRACKER_PATH, "w") as f:
         json.dump({"epochs_trained": epochs_trained}, f)
-    print(f"Modell und Trainingsstatus gespeichert (Epochen: {epochs_trained}, nach bester Train Accuracy).")
+    print(f"Model and training progress saved (Epochs: {epochs_trained}).")
 
 
 # Training und Testing
-def train_target_model(max_epochs=150, patience=20):  # max_epochs auf 150 gesetzt
+def train_target_model(max_epochs=150, patience=20):  
     current_epochs = load_checkpoint()
     if current_epochs >= max_epochs:
-        print(f"Modell wurde bereits {current_epochs} Epochen trainiert. Kein weiteres Training notwendig.")
+        print(f"Model already trained for {current_epochs} epochs. No further training neccessary.")
         return
 
-    print(f"Training wird fortgesetzt (bisherige Epochen: {current_epochs}).")
+    print(f"Resuming training from epoch{current_epochs}).")
     train_losses = []
-    train_accuracies = []  # Speichert Train Accuracy
+    train_accuracies = []  
     test_accuracies = []
 
-    best_train_accuracy = 0  # Speichert die beste Train Accuracy
+    best_train_accuracy = 0  # Save best Train Accuracy
     no_improve_epochs = 0
 
     for epoch in range(current_epochs, max_epochs):
         running_loss = 0.0
-        correct_train = 0  # Zählt korrekte Vorhersagen
-        total_train = 0    # Zählt gesamte Trainingsbeispiele
+        correct_train = 0  # counts correct
+        total_train = 0    
         model.train()
 
         for inputs, labels in trainloader:
@@ -128,24 +130,24 @@ def train_target_model(max_epochs=150, patience=20):  # max_epochs auf 150 geset
             optimizer.step()
             running_loss += loss.item()
 
-            # Berechnung der Train Accuracy
+            # calculate train accuracy
             _, predicted = torch.max(outputs, 1)
             total_train += labels.size(0)
             correct_train += (predicted == labels).sum().item()
 
-        # Berechne Durchschnittswerte für Loss und Train Accuracy
+        # count avg train and loss
         train_loss = running_loss / len(trainloader)
         train_accuracy = 100 * correct_train / total_train
         train_losses.append(train_loss)
         train_accuracies.append(train_accuracy)
 
-        # Testdaten evaluieren
+        # evaluate train and test data
         test_accuracy = test_target_model()
         test_accuracies.append(test_accuracy)
 
         print(f"[Epoch {epoch + 1}] Loss: {train_loss:.3f}, Train Accuracy: {train_accuracy:.2f}%, Test Accuracy: {test_accuracy:.2f}%")
 
-        # Speichere Modell nur, wenn die Train Accuracy steigt
+        # Save model only when train accuracy increases
         if train_accuracy > best_train_accuracy:
             best_train_accuracy = train_accuracy
             save_checkpoint(epoch + 1)
@@ -153,13 +155,12 @@ def train_target_model(max_epochs=150, patience=20):  # max_epochs auf 150 geset
         else:
             no_improve_epochs += 1
             if no_improve_epochs >= patience:
-                print("Early stopping ausgelöst.")
+                print("Early stopping triggered.")
                 break
 
         scheduler.step()
-        print(f"Learning Rate nach Epoche {epoch + 1}: {scheduler.get_last_lr()}")
+        print(f"Learning Rate after Epoch: {epoch + 1}: {scheduler.get_last_lr()}")
 
-    # Trainingsergebnisse speichern
     plt.figure(figsize=(10, 5))
     plt.subplot(1, 2, 1)
     plt.plot(train_losses, label="Training Loss")
@@ -192,6 +193,6 @@ def test_target_model():
     print(f"Test Accuracy: {accuracy:.2f}%")
     return accuracy
 
-# Führe Training und Tests aus
+#
 if __name__ == "__main__":
     train_target_model()

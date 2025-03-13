@@ -1,158 +1,160 @@
 import os
+import json
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
+from sklearn.metrics import precision_score, recall_score, accuracy_score, f1_score
 import matplotlib.pyplot as plt
-from sklearn.metrics import precision_score, recall_score, accuracy_score, f1_score, roc_auc_score
-import json
 
-# Ensure directory for plots and model save path exist
-MODEL_SAVE_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10"
-PLOTS_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10/plots"
-os.makedirs(MODEL_SAVE_DIR, exist_ok=True)
-os.makedirs(PLOTS_DIR, exist_ok=True)
-
-RESULTS_FILE = os.path.join(MODEL_SAVE_DIR, "final_results.json")
-
-# Check CUDA availability
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"[INFO] Using device: {device}")
-
-# Load Data
+# Configuration
 DATA_FILE = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models/attack_data/combined_attack_data.npz"
-print("[INFO] Loading dataset...")
-data = np.load(DATA_FILE)
-X_train = data["X_train"].astype(np.float32)
-y_train = data["y_train"].astype(np.float32)
-X_test = data["X_test"].astype(np.float32)
-y_test = data["y_test"].astype(np.float32)
+MODEL_SAVE_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10/models"
+RESULTS_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10/results"
+os.makedirs(MODEL_SAVE_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)  # 
 
-# Compute additional features (Prediction Entropy and Gini Index)
-def compute_extra_features(X):
-    prediction_entropy = -np.sum(X[:, :10] * np.log(X[:, :10] + 1e-10), axis=1, keepdims=True)
-    gini_index = 1 - np.sum(X[:, :10] ** 2, axis=1, keepdims=True)
-    return np.hstack([prediction_entropy, gini_index])
+RESULTS_FILE = os.path.join(RESULTS_DIR, "attacker_model_results.json")
 
-extra_train_features = compute_extra_features(X_train)
-extra_test_features = compute_extra_features(X_test)
-
-X_train = np.hstack([X_train, extra_train_features])
-X_test = np.hstack([X_test, extra_test_features])
-
-print(f"[INFO] Extended dataset shape: X_train {X_train.shape}, X_test {X_test.shape}")
-
-# Define Dataset Class
+# Dataset class
 class AttackerDataset(Dataset):
     def __init__(self, features, labels):
-        self.features = torch.tensor(features, dtype=torch.float32).to(device)  # Send data to GPU if available
-        self.labels = torch.tensor(labels, dtype=torch.float32).to(device)  # Send data to GPU if available
+        self.features = features
+        self.labels = labels
+
     def __len__(self):
         return len(self.labels)
-    def __getitem__(self, idx):
-        return self.features[idx], self.labels[idx]
 
-# Define Attacker Model
+    def __getitem__(self, idx):
+        return torch.tensor(self.features[idx], dtype=torch.float32), torch.tensor(self.labels[idx], dtype=torch.float32)
+
+# Attacker Model
 class AttackerModel(nn.Module):
     def __init__(self, input_dim):
         super(AttackerModel, self).__init__()
         self.fc = nn.Sequential(
-            nn.Linear(input_dim, 64), nn.LeakyReLU(), nn.Dropout(0.4),
-            nn.Linear(64, 32), nn.LeakyReLU(), nn.Dropout(0.3),
-            nn.Linear(32, 16), nn.LeakyReLU(),
-            nn.Linear(16, 1), nn.Sigmoid()
+            nn.Linear(input_dim, 512),
+            nn.LeakyReLU(),
+            nn.Dropout(0.4),
+            nn.Linear(512, 256),
+            nn.LeakyReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 128),
+            nn.LeakyReLU(),
+            nn.Linear(128, 1),
+            nn.Sigmoid()
         )
+
     def forward(self, x):
         return self.fc(x)
 
-# Training Function
-def train_attacker_model(X_train, y_train, X_test, y_test):
-    train_dataset = AttackerDataset(X_train, y_train)
-    test_dataset = AttackerDataset(X_test, y_test)
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
+# Focal Loss
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1, gamma=2):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
 
-    model = AttackerModel(input_dim=X_train.shape[1]).to(device)  # Move model to GPU
-    criterion = nn.BCELoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.0005, weight_decay=5e-5)
+    def forward(self, inputs, targets):
+        bce_loss = nn.BCELoss(reduction='none')(inputs, targets)
+        pt = torch.exp(-bce_loss)
+        focal_loss = self.alpha * (1 - pt) ** self.gamma * bce_loss
+        return focal_loss.mean()
+
+# Load dataset
+print(f"Loading dataset from: {DATA_FILE}")
+data = np.load(DATA_FILE)
+X_train = data["X_train"]
+y_train = data["y_train"]
+X_test = data["X_test"]
+y_test = data["y_test"]
+
+# Ensure the input feature size matches
+input_dim = X_train.shape[1]
+
+# Initialize device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
+# Create DataLoader
+train_dataset = AttackerDataset(X_train, y_train)
+test_dataset = AttackerDataset(X_test, y_test)
+
+train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=4)
+test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=4)
+
+# Initialize model, loss function, optimizer, and scheduler
+model = AttackerModel(input_dim=input_dim).to(device)
+criterion = FocalLoss(alpha=1, gamma=2)
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
+
+# Training loop
+epochs = 20
+train_losses = []
+test_losses = []
+test_precisions = []
+test_recalls = []
+test_f1_scores = []
+test_accuracies = []
+
+for epoch in range(epochs):
+    model.train()
+    train_loss = 0
+    for inputs, labels in train_loader:
+        inputs, labels = inputs.to(device), labels.to(device)
+        optimizer.zero_grad()
+        outputs = model(inputs).squeeze()
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        train_loss += loss.item()
     
-    # Tracking metrics
-    train_losses, val_losses, accuracies, precisions, recalls, f1_scores, auc_scores = [], [], [], [], [], [], []
+    scheduler.step()
 
-    for epoch in range(20):
-        model.train()
-        running_loss = 0.0
-        for inputs, labels in train_loader:
-            inputs, labels = inputs.to(device), labels.to(device)  # Move data to GPU
-            optimizer.zero_grad()
+    # Evaluation
+    model.eval()
+    test_loss = 0
+    test_preds, test_targets = [], []
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs).squeeze()
             loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item()
+            test_loss += loss.item()
+            test_preds.extend(outputs.cpu().numpy())
+            test_targets.extend(labels.cpu().numpy())
 
-        # Save training and validation metrics
-        model.eval()
-        test_preds, test_targets = [], []
-        with torch.no_grad():
-            for inputs, labels in test_loader:
-                inputs, labels = inputs.to(device), labels.to(device)  # Move data to GPU
-                outputs = model(inputs).squeeze()
-                test_preds.extend(outputs.cpu().numpy())  # Move back to CPU for evaluation
-                test_targets.extend(labels.cpu().numpy())  # Move back to CPU for evaluation
+    test_preds_binary = np.round(test_preds)
+    precision = precision_score(test_targets, test_preds_binary)
+    recall = recall_score(test_targets, test_preds_binary)
+    f1 = f1_score(test_targets, test_preds_binary)
+    accuracy = accuracy_score(test_targets, test_preds_binary)
 
-        test_preds_binary = np.round(test_preds)
-        accuracy = accuracy_score(test_targets, test_preds_binary)
-        precision = precision_score(test_targets, test_preds_binary)
-        recall = recall_score(test_targets, test_preds_binary)
-        f1 = f1_score(test_targets, test_preds_binary)
-        auc = roc_auc_score(test_targets, test_preds)
+    train_losses.append(train_loss / len(train_loader))
+    test_losses.append(test_loss / len(test_loader))
+    test_precisions.append(precision)
+    test_recalls.append(recall)
+    test_f1_scores.append(f1)
+    test_accuracies.append(accuracy)
 
-        # Append metrics to track
-        train_losses.append(running_loss / len(train_loader))
-        accuracies.append(accuracy)
-        precisions.append(precision)
-        recalls.append(recall)
-        f1_scores.append(f1)
-        auc_scores.append(auc)
+    print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_losses[-1]:.4f}, Test Loss: {test_losses[-1]:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}, Accuracy: {accuracy:.4f}")
 
-        print(f"Epoch [{epoch+1}/20], Loss: {running_loss / len(train_loader):.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}, AUC: {auc:.4f}")
+# Save model
+model_path = os.path.join(MODEL_SAVE_DIR, "attacker_model.pth")
+torch.save(model.state_dict(), model_path)
+print(f"Global Attacker Model saved to {model_path}")
 
-    # Save model
-    torch.save(model.state_dict(), os.path.join(MODEL_SAVE_DIR, "cifar-10_attacker_model.pth"))
+# Save results to JSON
+results = {
+    "train_losses": train_losses,
+    "test_losses": test_losses,
+    "test_precisions": test_precisions,
+    "test_recalls": test_recalls,
+    "test_f1_scores": test_f1_scores,
+    "test_accuracies": test_accuracies
+}
+with open(RESULTS_FILE, "w") as f:
+    json.dump(results, f, indent=4)
+print(f"Training completed. Results saved to {RESULTS_FILE}")
 
-    return {
-        "train_losses": train_losses,
-        "accuracies": accuracies,
-        "precisions": precisions,
-        "recalls": recalls,
-        "f1_scores": f1_scores,
-        "auc_scores": auc_scores
-    }
-
-## Final model training with features "Prediction Entropy + Gini Index + Class Label + Confidence Scores"
-print("[INFO] Running final training...")
-# Wählen Sie nur die relevanten Features (Prediction Entropy, Gini Index, Class Label und Confidence Scores)
-final_results = train_attacker_model(X_train[:, [11, 12, 0, 10]], y_train, X_test[:, [11, 12, 0, 10]], y_test)
-
-# Save results
-with open(RESULTS_FILE, "w") as json_file:
-    json.dump(final_results, json_file, indent=4)
-
-
-# Plot metrics
-epochs = np.arange(1, 21)
-plt.figure()
-plt.plot(epochs, final_results["accuracies"], label="Accuracy")
-plt.plot(epochs, final_results["precisions"], label="Precision")
-plt.plot(epochs, final_results["recalls"], label="Recall")
-plt.plot(epochs, final_results["f1_scores"], label="F1 Score")
-plt.plot(epochs, final_results["auc_scores"], label="AUC")
-plt.xlabel('Epoch')
-plt.ylabel('Score')
-plt.legend()
-plt.title("Final Attacker Model Metrics")
-plt.savefig(os.path.join(PLOTS_DIR, "final_attacker_metrics.png"))
-plt.close()
-
-print("[INFO] Final model training completed and model saved.")
