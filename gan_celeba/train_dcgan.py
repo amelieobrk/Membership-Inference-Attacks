@@ -81,7 +81,7 @@ class Discriminator(nn.Module):
 
 
 batch_size = 256 # More stable against model collapse than 128 or 512 
-epochs = 50
+epochs = 27
 img_size = 64
 
 data_dir = '~/amelie/data/preprocessed_celebA'
@@ -181,7 +181,7 @@ for epoch in range(start_epoch, epochs):
     print(f'📢 Epoch {epoch+1}/{epochs} | D_loss: {D_loss.item():.4f} | G_loss: {G_loss.item():.4f}')
 
 
-    # Safe final model
+    # Save final model
     state_file = f"{model_save_path}/training_state.json"
 
 

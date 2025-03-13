@@ -1,3 +1,7 @@
+#calculate FID score per class between real and generated images
+# using an Inception v3 model for feature extraction.
+
+
 import os
 import torch
 import json
@@ -8,14 +12,15 @@ from torch.utils.data import DataLoader
 from scipy.linalg import sqrtm
 from PIL import Image
 
-# Funktion zur Feature-Extraktion mit Inception v3
+# Function to load the Inception v3 model for feature extraction
 def load_inception_model(device):
     model = inception_v3(pretrained=True, transform_input=False)
-    model.fc = torch.nn.Identity()  # Entferne die letzte Klassifikationsschicht
+    model.fc = torch.nn.Identity()  #Remove classification layer
     model.eval()
     model.to(device)
     return model
 
+# Function to extract features using Inception v3
 def extract_features(model, image_dir, transform, device, batch_size=32):
     features = []
     image_paths = [os.path.join(image_dir, img) for img in os.listdir(image_dir) if img.endswith(('.png', '.jpg', '.jpeg'))]
@@ -31,7 +36,7 @@ def extract_features(model, image_dir, transform, device, batch_size=32):
     features = np.concatenate(features, axis=0)
     return features
 
-# Berechnung des FID-Scores
+# Function to calculate the FID score
 def calculate_fid(mu1, sigma1, mu2, sigma2):
     covmean, _ = sqrtm(sigma1.dot(sigma2), disp=False)
     if np.iscomplexobj(covmean):
@@ -39,17 +44,17 @@ def calculate_fid(mu1, sigma1, mu2, sigma2):
     fid = np.sum((mu1 - mu2)**2) + np.trace(sigma1 + sigma2 - 2 * covmean)
     return fid
 
-# Hauptfunktion zur Berechnung des FID-Scores pro Klasse
+# Main function to compute FID per class
 if __name__ == "__main__":
     base_dir = os.path.expanduser("~/amelie/cgan_cifar10")
     real_images_dir = os.path.join(base_dir, "real_images")
     generated_images_dir = os.path.join(base_dir, "generated_images")
 
-    # Gerät auswählen
+    # Select device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Berechnungen laufen auf: {device}")
 
-    # Lade Inception-Modell
+    # Load inception model
     print("Lade Inception-Modell...")
     model = load_inception_model(device)
 
@@ -59,22 +64,22 @@ if __name__ == "__main__":
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    # Berechne FID-Score pro Klasse
+     # Compute FID scores per class
     class_fid_scores = {}
 
-    # Epocheninformation abfragen
-    epoch = input("Bitte gib die Epoche ein: ")
+   # Request epoch information
+    epoch = input("please enter the current epoch number: ")
 
     classes = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 
     for class_name in classes:
-        print(f"Berechne FID für Klasse {class_name}...")
+        print(f"Calculate FID score for class: {class_name}...")
 
         real_class_dir = os.path.join(real_images_dir, class_name)
         generated_class_dir = os.path.join(generated_images_dir, class_name)
 
         if not os.path.exists(real_class_dir) or not os.path.exists(generated_class_dir):
-            print(f"Warnung: Klasse {class_name} fehlt in einem der Verzeichnisse. Überspringe...")
+            print(f"WARNING: class {class_name} is missing in one of the directories. Skipping... ")
             continue
 
         real_features = extract_features(model, real_class_dir, inception_transform, device)
@@ -85,9 +90,9 @@ if __name__ == "__main__":
 
         fid_score = calculate_fid(mu1, sigma1, mu2, sigma2)
         class_fid_scores[class_name] = fid_score
-        print(f"FID-Score für Klasse {class_name}: {fid_score:.4f}")
+        print(f"FID score for class:{class_name}: {fid_score:.4f}")
 
-    # Ergebnisse in JSON speichern
+    # Save results in json file
     results_path = os.path.join(base_dir, "fid_scores.json")
 
     if os.path.exists(results_path):
@@ -101,4 +106,4 @@ if __name__ == "__main__":
     with open(results_path, "w") as f:
         json.dump(fid_data, f, indent=4)
 
-    print(f"FID-Scores pro Klasse gespeichert unter {results_path}.")
+    print(f"FID scores per class saved at: {results_path}.")

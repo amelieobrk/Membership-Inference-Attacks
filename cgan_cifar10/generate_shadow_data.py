@@ -1,3 +1,7 @@
+#load a trained generator model, generate 400,000 synthetic CIFAR-10 images,
+# and saves them in batches for shadow model training
+
+
 import os
 import torch
 import numpy as np
@@ -41,28 +45,28 @@ if not os.path.exists(output_dir):
 model_dir = os.path.expanduser("~/amelie/cgan_cifar10/models")
 generator_path = os.path.join(model_dir, "generator.pth")
 
-# CIFAR-10 Klassen
+
 cifar10_classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 
                    'dog', 'frog', 'horse', 'ship', 'truck']
 
 # Initialize Generator
 G = Generator().cuda()
 if os.path.exists(generator_path):
-    print("Lade trainiertes Generator-Modell...")
+    print("Loading trained Generator-Model...")
     G.load_state_dict(torch.load(generator_path))
 else:
-    raise FileNotFoundError(f"Trainiertes Modell nicht gefunden unter {generator_path}")
+    raise FileNotFoundError(f"Couldn't find pre-trained model at:{generator_path}")
 
-# Generator in den Evaluierungsmodus setzen
+#Set generator to evaluation mode
 G.eval()
 
-# Anzahl der generierten Bilder und Batch-Größe
-num_images = 400000#vierhunderttausend bilder !
-batch_size = 128
-images_per_file = 50000 #fünfzigtausend images per batch = 8 batches
 
-# Generiere Bilder und speichere sie in Batches
-print("Generiere Trainingsdaten für Shadow Models...")
+num_images = 400000
+batch_size = 128
+images_per_file = 50000 
+
+# Geneerate images and safe them as batches
+print("generating images for shadow models...")
 with torch.no_grad():
     for batch_index in range(num_images // images_per_file):
         batch_images = []
@@ -77,17 +81,17 @@ with torch.no_grad():
             batch_images.append(generated_images.cpu())
             batch_labels.extend(labels.cpu().numpy())
 
-        # Konvertiere die Bilder und Labels in numpy-Arrays
+        # convert images and labels into numpy array
         batch_images = torch.cat(batch_images, dim=0).permute(0, 2, 3, 1).numpy()  # [N, H, W, C]
-        batch_images = ((batch_images + 1) / 2 * 255).astype(np.uint8)  # Skaliere zu [0, 255]
+        batch_images = ((batch_images + 1) / 2 * 255).astype(np.uint8)  # Scale to [0, 255]
         batch_labels = np.array(batch_labels)
 
-        # Speicher die Batch-Daten im .npz-Format
+        # Save batch files as .npz
         batch_file = os.path.join(output_dir, f"data_batch_{batch_index + 1}.npz")
         np.savez(batch_file, images=batch_images, labels=batch_labels)
         print(f"Batch {batch_index + 1} gespeichert: {batch_file}")
 
-# Speichere ein Beispielbild zur Überprüfung
+# Save example image for validation
 for i in range(10):
     example_noise = torch.randn(1, 100, 1, 1).cuda()
     example_label_index = torch.randint(0, 10, (1,)).cuda()
@@ -105,5 +109,5 @@ plt.axis("off")
 plt.savefig(example_path)
 plt.close()
 
-print(f"400.000 Bilder generiert und in {output_dir} gespeichert.")
-print(f"Beispielbild mit Label gespeichert unter {example_path}.")
+print(f"400.000 images generated and saved at: {output_dir}")
+print(f"Example image with label saved at: {example_path}.")

@@ -1,3 +1,5 @@
+#Train a cGan on the Cifar-10 dataset
+
 import os
 import torch
 import torch.nn as nn
@@ -7,29 +9,38 @@ from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 
+#Define generator
 class Generator(nn.Module):
     def __init__(self, d=128):
         super(Generator, self).__init__()
+        #First transposed conv layer: maps noise vector (100 channels) to feature maps
         self.deconv1 = nn.ConvTranspose2d(100, d * 4, 4, 1, 0)
         self.deconv1_bn = nn.BatchNorm2d(d * 4)
+        # Second transposed conv layer: concatenates class labels as additional channels
         self.deconv2 = nn.ConvTranspose2d(d * 4 + 10, d * 2, 4, 2, 1)
         self.deconv2_bn = nn.BatchNorm2d(d * 2)
         self.deconv3 = nn.ConvTranspose2d(d * 2, d, 4, 2, 1)
+         # Final transposed conv layer: outputs a 3-channel RGB image
         self.deconv3_bn = nn.BatchNorm2d(d)
         self.deconv4 = nn.ConvTranspose2d(d, 3, 4, 2, 1)
 
     def forward(self, input, labels):
+        # Apply ReLU activation to the first layer
         x = F.relu(self.deconv1_bn(self.deconv1(input)))
+        # Expand label tensor to match the feature map dimensions and concatenate it
         labels = labels.expand(-1, -1, x.size(2), x.size(3))
         x = torch.cat([x, labels], dim=1)
         x = F.relu(self.deconv2_bn(self.deconv2(x)))
         x = F.relu(self.deconv3_bn(self.deconv3(x)))
+        # tanh for output normalization
         x = torch.tanh(self.deconv4(x))
         return x
 
+#define discriminator
 class Discriminator(nn.Module):
     def __init__(self, d=128):
         super(Discriminator, self).__init__()
+        # First conv layer: takes a 3-channel image and concatenates label information
         self.conv1 = nn.Conv2d(3 + 10, d, 4, 2, 1)
         self.conv2 = nn.Conv2d(d, d * 2, 4, 2, 1)
         self.conv2_bn = nn.BatchNorm2d(d * 2)
@@ -37,12 +48,13 @@ class Discriminator(nn.Module):
         self.conv4 = nn.Conv2d(d * 4, 1, 4, 1, 0)
 
     def forward(self, input, labels):
+        # Expand labels to match the spatial dimensions of the image
         labels = labels.expand(-1, -1, input.size(2), input.size(3))
         x = torch.cat([input, labels], dim=1)
         x = F.leaky_relu(self.conv1(x), 0.2)
         x = F.leaky_relu(self.conv2_bn(self.conv2(x)), 0.2)
         x = F.leaky_relu(self.conv3(x), 0.2)
-        x = torch.sigmoid(self.conv4(x))
+        x = torch.sigmoid(self.conv4(x)) #probability output using sigmoid
         return x.view(-1, 1)
 
 # Training Setup
@@ -58,6 +70,8 @@ model_dir = os.path.join(base_dir, "models")
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
 
+
+#preprocess data
 transform = transforms.Compose([
     transforms.Resize(32),
     transforms.ToTensor(),
@@ -69,7 +83,6 @@ train_loader = DataLoader(
     batch_size=256, shuffle=True
 )
 
-# CIFAR-10 Klassen
 cifar10_classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
 # Initialize Models
@@ -82,14 +95,14 @@ discriminator_path = os.path.join(model_dir, "discriminator.pth")
 epoch_path = os.path.join(model_dir, "last_epoch.txt")
 start_epoch = 1
 if os.path.exists(generator_path) and os.path.exists(discriminator_path):
-    print("Lade vortrainierte Modelle...")
+    print("Loading pre-trained models...")
     G.load_state_dict(torch.load(generator_path))
     D.load_state_dict(torch.load(discriminator_path))
     if os.path.exists(epoch_path):
         with open(epoch_path, "r") as f:
             start_epoch = int(f.read().strip()) + 1
 else:
-    print("Keine vortrainierten Modelle gefunden. Beginne neues Training...")
+    print("No pre-trained models found! Starting from scratch...")
 
 criterion = nn.BCELoss()
 G_optimizer = optim.Adam(G.parameters(), lr=0.0002, betas=(0.5, 0.999))
@@ -101,8 +114,8 @@ def adjust_learning_rate(optimizer, lr):
         param_group['lr'] = lr
 
 # Training Loop
-num_epochs = 300#das hier sind die ZUSÄTZLICHEN EPochen , start e ist die zuletzt gespiecherte!
-lr_reduction_epoch1 =  190  # Epoche, nach der die Lernrate reduziert wird
+num_epochs = 300 #ADDITIONAL epochs beyond the last saved state (if training is interrupted, has to be adjustet manually)
+lr_reduction_epoch1 =  190  
 lr_reduction_epoch2 =  240
 lr_reduction_epoch3 = 270
 
@@ -110,22 +123,22 @@ fixed_noise = torch.randn(10, 100, 1, 1).cuda()
 fixed_labels = torch.eye(10).view(10, 10, 1, 1).cuda()
 
 for epoch in range(start_epoch, start_epoch + num_epochs):
-    print(f"Epoch {epoch} gestartet...")
+    print(f"Epoch {epoch} started...")
 
     # Reduziere die Lernrate nach lr_reduction_epoch
     if epoch == lr_reduction_epoch1:
-        new_lr = G_optimizer.param_groups[0]['lr'] * 0.75  # reduziere die lernrate etwas
+        new_lr = G_optimizer.param_groups[0]['lr'] * 0.75  # reduce learning rate by 25%
         adjust_learning_rate(D_optimizer, new_lr)
-        print(f"Lernrate reduziert auf {new_lr}")
+        print(f"Learning rate reduced to{new_lr}")
     if epoch == lr_reduction_epoch2:
-        new_lr = G_optimizer.param_groups[0]['lr'] * 0.5  # reduziere die lernrate etwas
+        new_lr = G_optimizer.param_groups[0]['lr'] * 0.5  # reduce learning rate by 50%
         adjust_learning_rate(D_optimizer, new_lr)
-        print(f"Lernrate reduziert auf {new_lr}")
+        print(f"Learning rate reduced to{new_lr}")
 
     if epoch == lr_reduction_epoch3:
-        new_lr = G_optimizer.param_groups[0]['lr'] * 0.25  # reduziere die lernrate etwas
+        new_lr = G_optimizer.param_groups[0]['lr'] * 0.25  # reduce learning rate by 75%
         adjust_learning_rate(D_optimizer, new_lr)
-        print(f"Lernrate reduziert auf {new_lr}")
+        print(f"Learning rate reduced to{new_lr}")
 
     for batch_idx, (real_images, labels) in enumerate(train_loader):
         batch_size = real_images.size(0)
@@ -133,8 +146,8 @@ for epoch in range(start_epoch, start_epoch + num_epochs):
         real_labels = torch.eye(10)[labels].view(batch_size, 10, 1, 1).cuda()
 
         # Label Smoothing
-        smooth_real = torch.full((batch_size, 1), 0.95).cuda()  # Echte Labels (0.9 statt 1.0)
-        smooth_fake = torch.full((batch_size, 1), 0.25).cuda()  # Falsche Labels (0.1 statt 0.0)
+        smooth_real = torch.full((batch_size, 1), 0.95).cuda()  
+        smooth_fake = torch.full((batch_size, 1), 0.25).cuda()  
 
         # Train Discriminator
         D.zero_grad()
@@ -158,11 +171,11 @@ for epoch in range(start_epoch, start_epoch + num_epochs):
         G_loss.backward()
         G_optimizer.step()
 
-        # Loggen der Verluste
+        # Logging of losses
         if batch_idx % 100 == 0:
             print(f"Epoch [{epoch}], Batch [{batch_idx + 1}], D Loss: {D_loss.item()}, G Loss: {G_loss.item()}")
 
-    # Generiere Bilder zum Visualisieren
+    # Generate random image samples to visualize training progress
     G.eval()
     with torch.no_grad():
         diverse_noise = torch.randn(30, 100, 1, 1).cuda()
@@ -179,10 +192,10 @@ for epoch in range(start_epoch, start_epoch + num_epochs):
     plt.close()
     G.train()
 
-    # Speichere Modelle
+    # Save models
     torch.save(G.state_dict(), os.path.join(model_dir, "generator.pth"))
     torch.save(D.state_dict(), os.path.join(model_dir, "discriminator.pth"))
     with open(epoch_path, "w") as f:
         f.write(str(epoch))
 
-print("Training abgeschlossen und Modelle gespeichert!")
+print("Training complete and models saved!")
