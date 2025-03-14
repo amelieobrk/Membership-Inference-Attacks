@@ -77,7 +77,7 @@ class Discriminator(nn.Module):
 
 
 batch_size = 256 # More stable against model collapse than 128 or 512 
-epochs = 27
+epochs = 100
 img_size = 64
 
 data_dir = '~/amelie/data/preprocessed_celebA'
