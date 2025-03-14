@@ -41,7 +41,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=all_members  # Make sure member and non-member ratio stays the same over test and train set
 )
 
-# Safe data
+# Save data
 np.savez(
     COMBINED_OUTPUT_FILE,
     X_train=X_train,

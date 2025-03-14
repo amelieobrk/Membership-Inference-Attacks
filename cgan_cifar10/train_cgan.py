@@ -70,6 +70,8 @@ model_dir = os.path.join(base_dir, "models")
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
 
+data_dir = "~/amelie/data/cifar-10-batches-py"
+
 
 #preprocess data
 transform = transforms.Compose([
@@ -79,7 +81,7 @@ transform = transforms.Compose([
 ])
 
 train_loader = DataLoader(
-    datasets.CIFAR10(base_dir, train=True, download=True, transform=transform),
+    datasets.CIFAR10(data_dir, train=True, download=True, transform=transform),
     batch_size=256, shuffle=True
 )
 

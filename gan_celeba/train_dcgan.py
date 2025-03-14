@@ -1,10 +1,6 @@
 # training of a dcgan for celebA Pictures
 
 import os
-import time
-import itertools
-import pickle
-import imageio
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -38,7 +34,7 @@ class Generator(nn.Module):
         self.deconv4 = nn.ConvTranspose2d(d * 2, d, 4, 2, 1)
         self.deconv4_bn = nn.BatchNorm2d(d)
         self.deconv5 = nn.ConvTranspose2d(d, 3, 4, 2, 1)
-        self.dropout = nn.Dropout(0.2)# dropout -> Don't make discriminator too dominant
+        self.dropout = nn.Dropout(0.2)# dropout -> Don't make generator too dominant
 
 
     def forward(self, noise, labels):
@@ -103,7 +99,8 @@ train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_work
 G = Generator(128).cuda()
 D = Discriminator(128).cuda()
 BCE_loss = nn.BCELoss()
-G_optimizer = optim.Adam(G.parameters(), lr=0.0004, betas=(0.5, 0.999))
+#higher lr for generator since discriminator tends to be more dominant
+G_optimizer = optim.Adam(G.parameters(), lr=0.0003, betas=(0.5, 0.999))
 D_optimizer = optim.Adam(D.parameters(), lr=0.0002, betas=(0.5, 0.999), weight_decay=1e-3)
 
 
@@ -149,7 +146,7 @@ for epoch in range(start_epoch, epochs):
     loop.set_description(f"Epoch [{epoch+1}/{epochs}]")
     loop.set_postfix(D_loss=D_loss.item(), G_loss=G_loss.item())
 
-    # show a grid of example images after each epoch
+    # show a grid of example images after each epoch 
 
     with torch.no_grad():
         n_images = 25  #5x5 grid
@@ -185,7 +182,7 @@ for epoch in range(start_epoch, epochs):
     state_file = f"{model_save_path}/training_state.json"
 
 
-    # safe train state after each epoch in json file
+    # save train state after each epoch in json file
     training_state = {
         "epoch": epoch + 1,
         "G_losses": G_losses,
@@ -195,23 +192,14 @@ for epoch in range(start_epoch, epochs):
     with open(state_file, "w") as f:
         json.dump(training_state, f, indent=4)
 
-    print(f"model and training state safed after epoch {epoch+1} ")
+    print(f"model and training state saved after epoch {epoch+1} ")
 
     # safe loss values
     G_losses.append(G_loss.item())
     D_losses.append(D_loss.item())
 
-    # Plot loss curve after each epoch
-    plt.figure(figsize=(10, 5))
-    plt.plot(range(1, len(G_losses) + 1), G_losses, label="Generator Loss")
-    plt.plot(range(1, len(D_losses) + 1), D_losses, label="Discriminator Loss")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.legend()
-    plt.title("Development of loss over all epochs")
-    plt.grid()
-    plt.savefig(f'{results_dir}/loss_curve_epoch_{epoch+1}.png')
-    plt.close()
+
+
 
 
 

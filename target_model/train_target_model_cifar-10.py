@@ -26,8 +26,8 @@ transform = transforms.Compose([
 ])
 
 # load cifar-10 training and test data
-train_dataset = datasets.CIFAR10(root=data_path, train=True, transform=transform, download=False)
-test_dataset = datasets.CIFAR10(root=data_path, train=False, transform=transform, download=False)
+train_dataset = datasets.CIFAR10(data_path, train=True, transform=transform, download=False)
+test_dataset = datasets.CIFAR10(data_path, train=False, transform=transform, download=False)
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)

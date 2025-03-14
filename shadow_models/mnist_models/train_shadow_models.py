@@ -1,4 +1,4 @@
-#Train shadow models on MNIST dataset
+#Train shadow models on synthetic MNIST dataset
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -54,9 +54,9 @@ def load_data(path):
 
 
 
-
+#Train the model on given dataset
 def train_model(model, train_loader, test_loader, device, model_id, epochs=10):
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss()# Loss function = Cross Entropy Loss
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     models_dir = '/home/lab24inference/amelie/shadow_models/mnist_models/models'
     os.makedirs(models_dir, exist_ok=True)  
@@ -66,7 +66,7 @@ def train_model(model, train_loader, test_loader, device, model_id, epochs=10):
     if os.path.exists(progress_path):
         with open(progress_path, 'r') as f:
             progress = json.load(f)
-        start_epoch = progress['epochs']
+        start_epoch = progress['epochs'] # Resume from last saved epoch
     else:
         progress = {'epochs': 0, 'train_accuracy': [], 'test_accuracy': []}
         start_epoch = 0

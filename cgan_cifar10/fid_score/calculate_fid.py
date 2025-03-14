@@ -1,7 +1,6 @@
 #calculate FID score per class between real and generated images
 # using an Inception v3 model for feature extraction.
 
-
 import os
 import torch
 import json
@@ -46,16 +45,16 @@ def calculate_fid(mu1, sigma1, mu2, sigma2):
 
 # Main function to compute FID per class
 if __name__ == "__main__":
-    base_dir = os.path.expanduser("~/amelie/cgan_cifar10")
+    base_dir = os.path.expanduser("~/amelie/cgan_cifar10/fid_score")
     real_images_dir = os.path.join(base_dir, "real_images")
     generated_images_dir = os.path.join(base_dir, "generated_images")
 
     # Select device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Berechnungen laufen auf: {device}")
+    print(f"Using device: {device}")
 
     # Load inception model
-    print("Lade Inception-Modell...")
+    print("Loading inception model...")
     model = load_inception_model(device)
 
     inception_transform = transforms.Compose([
@@ -93,7 +92,7 @@ if __name__ == "__main__":
         print(f"FID score for class:{class_name}: {fid_score:.4f}")
 
     # Save results in json file
-    results_path = os.path.join(base_dir, "fid_scores.json")
+    results_path = os.path.join(base_dir, "fid_score", "fid_scores.json")
 
     if os.path.exists(results_path):
         with open(results_path, "r") as f:

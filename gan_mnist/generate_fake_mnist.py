@@ -55,8 +55,8 @@ def generate_fake_mnist_data(total_samples, output_dir, num_splits=20):
     for batch_idx in range(num_batches):
         # Generate random noise and labels for data diversity
         noise = torch.randn(batch_size, 100, 1, 1, device=device)
-        label_indices = torch.randint(0, 10, (batch_size,), device=device)
-        labels_onehot = torch.eye(10, device=device)[label_indices].view(batch_size, 10, 1, 1)
+        label_indices = torch.randint(0, 10, (batch_size,), device=device) #create random labels
+        labels_onehot = torch.eye(10, device=device)[label_indices].view(batch_size, 10, 1, 1) #convert in one hot vector
 
         with torch.no_grad():
             generated_images = G(noise, labels_onehot).cpu().numpy()

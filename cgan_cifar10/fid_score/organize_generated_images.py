@@ -54,7 +54,7 @@ def generate_and_organize_generated_images(generator, save_dir, num_images_per_c
             print(f"{num_images_per_class} Images for class '{class_name}' generated and organized.")
 
 if __name__ == "__main__":
-    base_dir = os.path.expanduser("~/amelie/cgan_cifar10")
+    base_dir = os.path.expanduser("~/amelie/cgan_cifar10/fid_score")
     organized_generated_images_dir = os.path.join(base_dir, "generated_images")
 
     # Organize generated images

@@ -1,3 +1,5 @@
+#Perform ablation study using different feature combinations
+
 import os
 import itertools
 import numpy as np
@@ -8,29 +10,23 @@ from sklearn.metrics import precision_score, recall_score, accuracy_score, f1_sc
 import json
 
 # Check CUDA availability
-print(f"[DEBUG] CUDA available: {torch.cuda.is_available()}")
-print(f"[DEBUG] CUDA Device Count: {torch.cuda.device_count()}")
-if torch.cuda.is_available():
-    for i in range(torch.cuda.device_count()):
-        print(f"[DEBUG] Device {i}: {torch.cuda.get_device_name(i)}")
-    print(f"[DEBUG] Current device: {torch.cuda.current_device()}")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"[INFO] Using device: {device}")
+print(f" Using device: {device}")
 
-MODEL_SAVE_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10"
-RESULTS_FILE = os.path.join(MODEL_SAVE_DIR, "ablation_results.json")
+BASE_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10/ablation_study"
+RESULTS_FILE = os.path.join(BASE_DIR, "ablation_results.json")
 
 # Load Data
 DATA_FILE = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models/attack_data/combined_attack_data.npz"
-print("[INFO] Loading dataset...")
+print(" Loading dataset...")
 data = np.load(DATA_FILE)
 X_train = data["X_train"].astype(np.float32)
 y_train = data["y_train"].astype(np.float32)
 X_test = data["X_test"].astype(np.float32)
 y_test = data["y_test"].astype(np.float32)
 
-print(f"[INFO] Dataset loaded successfully: X_train {X_train.shape}, X_test {X_test.shape}")
+print(f"[ Dataset loaded successfully: X_train {X_train.shape}, X_test {X_test.shape}")
 
 # Compute additional features
 def compute_extra_features(X):
@@ -47,7 +43,7 @@ extra_test_features = compute_extra_features(X_test)
 X_train = np.hstack([X_train, extra_train_features])
 X_test = np.hstack([X_test, extra_test_features])
 
-print(f"[INFO] Extended dataset shape: X_train {X_train.shape}, X_test {X_test.shape}")
+print(f"Extended dataset shape: X_train {X_train.shape}, X_test {X_test.shape}")
 
 # Define Dataset Class
 class AttackerDataset(Dataset):
@@ -67,7 +63,7 @@ class AttackerModel(nn.Module):
             nn.Linear(input_dim, 64), nn.LeakyReLU(), nn.Dropout(0.4),
             nn.Linear(64, 32), nn.LeakyReLU(), nn.Dropout(0.3),
             nn.Linear(32, 16), nn.LeakyReLU(),
-            nn.Linear(16, 1), nn.Sigmoid()
+            nn.Linear(16, 1), nn.Sigmoid()  # Binary classification output (0 or 1)
         )
     def forward(self, x):
         return self.fc(x)
@@ -119,7 +115,7 @@ else:
     ablation_results = {}
 
 # Baseline Model Training
-print("[INFO] Running baseline training (only with confidence scores and class labels)...")
+print(" Running baseline training (only with confidence scores and class labels)...")
 baseline_results = train_attacker_model(X_train[:, :11], y_train, X_test[:, :11], y_test)  # only Confidence Scores and Class Labels
 ablation_results["Baseline"] = {
     "Used Features": ["10 Confidence Scores", "Class Label"],
@@ -133,7 +129,7 @@ print(f"[INFO] Baseline Results: {baseline_results}")
 EXTRA_FEATURES = ["Prediction Entropy", "Top-2 Difference", "Gini Index", "Variance"]
 BASELINE_FEATURES = list(range(11))
 
-print("[INFO] Running ablation study (training with additional features without Confidence Scores)...")
+print(" Running ablation study (training with additional features without Confidence Scores)...")
 for num_add in range(1, len(EXTRA_FEATURES) + 1):
     for added_features in itertools.combinations(EXTRA_FEATURES, num_add):
         selected_feature_indices = [11 + EXTRA_FEATURES.index(f) for f in added_features]  # only select additional features
@@ -148,6 +144,6 @@ for num_add in range(1, len(EXTRA_FEATURES) + 1):
         }
         with open(RESULTS_FILE, "w") as json_file:
             json.dump(ablation_results, json_file, indent=4)
-        print(f"[INFO] Results after adding {added_features}: {results}")
+        print(f"Results after adding {added_features}: {results}")
 
-print("[INFO] Ablation study completed.")
+print(" Ablation study completed.")

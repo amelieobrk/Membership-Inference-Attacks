@@ -37,10 +37,6 @@ X_train = data["X_train"]
 y_train = data["y_train"]
 probability_matrix = X_train[:, :-1]
 
-
-
-
-
 # Compute additional metrics
 computed_top2_diff = compute_top2_diff(probability_matrix)
 prediction_entropy = compute_entropy(probability_matrix)

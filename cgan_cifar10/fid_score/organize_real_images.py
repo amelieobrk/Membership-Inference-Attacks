@@ -45,8 +45,8 @@ def organize_real_images(real_images_dir, save_dir):
     print("All real CIFAR-10 images successfully organized.")
 
 if __name__ == "__main__":
-    base_dir = os.path.expanduser("~/amelie/cgan_cifar10")
-    real_images_dir = os.path.join(base_dir, "cifar-10-batches-py")  
+    base_dir = os.path.expanduser("~/amelie/cgan_cifar10/fid_score")
+    real_images_dir = "~/amelie/data/cifar-10-batches-py"
     organized_real_images_dir = os.path.join(base_dir, "real_images")
 
     organize_real_images(real_images_dir, organized_real_images_dir)
