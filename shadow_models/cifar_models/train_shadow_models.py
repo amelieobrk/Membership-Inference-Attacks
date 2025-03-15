@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, Dataset
 from PIL import Image
 
 # Directory configuration 
-BASE_DIR = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models"
+BASE_DIR = "/home/lab24inference/amelie/shadow_models/cifar_models"
 SHADOW_DATA_DIR = "/home/lab24inference/amelie/shadow_models_data/fake_cifar/shadow_data"
 MODEL_SAVE_DIR = os.path.join(BASE_DIR, "models")
 os.makedirs(MODEL_SAVE_DIR, exist_ok=True)

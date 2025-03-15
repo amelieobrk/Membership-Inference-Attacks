@@ -70,7 +70,7 @@ def load_shadow_model_data(model_id):
 def create_model():
     model = models.resnet18(pretrained=False)
     model.fc = nn.Sequential(
-        nn.Dropout(0.5),
+        nn.Dropout(0.1),
         nn.Linear(model.fc.in_features, 1)
     )
     return model.to(device)
@@ -101,7 +101,7 @@ def save_progress(model_id, epoch):
         json.dump(progress_data, f)
 
 # Training function
-def train_shadow_model(model, train_loader, val_loader, num_epochs=5, model_id=0):
+def train_shadow_model(model, train_loader, val_loader, num_epochs=20, model_id=0):
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
 
@@ -149,7 +149,7 @@ def train_shadow_model(model, train_loader, val_loader, num_epochs=5, model_id=0
 
 # Main execution
 if __name__ == "__main__":
-    num_shadow_models = 5  
+    num_shadow_models = 20  
 
     for model_id in range(num_shadow_models):
         print(f"\nTraining Shadow Model {model_id}")
@@ -164,6 +164,6 @@ if __name__ == "__main__":
         val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=4)
 
         model = create_model()
-        train_shadow_model(model, train_loader, val_loader, num_epochs=5, model_id=model_id)
+        train_shadow_model(model, train_loader, val_loader, num_epochs=20, model_id=model_id)
 
     print("Training complete.")

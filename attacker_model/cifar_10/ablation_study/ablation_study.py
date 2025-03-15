@@ -14,11 +14,11 @@ import json
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f" Using device: {device}")
 
-BASE_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10/ablation_study"
+BASE_DIR = "/home/lab24inference/amelie/attacker_model/cifar_10/ablation_study"
 RESULTS_FILE = os.path.join(BASE_DIR, "ablation_results.json")
 
 # Load Data
-DATA_FILE = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models/attack_data/combined_attack_data.npz"
+DATA_FILE = "/home/lab24inference/amelie/shadow_models/cifar_models/attack_data/combined_attack_data.npz"
 print(" Loading dataset...")
 data = np.load(DATA_FILE)
 X_train = data["X_train"].astype(np.float32)

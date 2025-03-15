@@ -8,9 +8,9 @@ from sklearn.metrics import precision_score, recall_score, accuracy_score, f1_sc
 import matplotlib.pyplot as plt
 
 # Configuration
-DATA_FILE = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models/attack_data/combined_attack_data.npz"
-MODEL_SAVE_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10/models"
-RESULTS_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10/results"
+DATA_FILE = "/home/lab24inference/amelie/shadow_models/cifar_models/attack_data/combined_attack_data.npz"
+MODEL_SAVE_DIR = "/home/lab24inference/amelie/attacker_model/cifar_10/models"
+RESULTS_DIR = "/home/lab24inference/amelie/attacker_model/cifar_10/results"
 os.makedirs(MODEL_SAVE_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)  # 
 

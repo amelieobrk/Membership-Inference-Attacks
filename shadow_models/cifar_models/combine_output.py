@@ -3,7 +3,7 @@ import os
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-OUTPUT_DIR = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models/attack_data"
+OUTPUT_DIR = "/home/lab24inference/amelie/shadow_models/cifar_models/attack_data"
 COMBINED_OUTPUT_FILE = os.path.join(OUTPUT_DIR, "combined_attack_data.npz")
 
 # find all shadow model files

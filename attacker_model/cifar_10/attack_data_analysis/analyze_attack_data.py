@@ -6,8 +6,8 @@ from collections import Counter
 from scipy.stats import entropy
 
 # Configuration
-DATA_FILE = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models/attack_data/combined_attack_data.npz"
-ANALYSIS_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10/attack_data_analysis"
+DATA_FILE = "/home/lab24inference/amelie/shadow_models/cifar_models/attack_data/combined_attack_data.npz"
+ANALYSIS_DIR = "/home/lab24inference/amelie/attacker_model/cifar_10/attack_data_analysis"
 os.makedirs(ANALYSIS_DIR, exist_ok=True)
 
 # Define functions to compute additional metrices

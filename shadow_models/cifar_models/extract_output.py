@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 from torch import nn
 from PIL import Image
 
-BASE_DIR = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models"
+BASE_DIR = "/home/lab24inference/amelie/shadow_models/cifar_models"
 SHADOW_DATA_DIR = "/home/lab24inference/amelie/shadow_models_data/fake_cifar/shadow_data"
 MODEL_SAVE_DIR = os.path.join(BASE_DIR, "models")
 OUTPUT_DIR = os.path.join(BASE_DIR, "attack_data")

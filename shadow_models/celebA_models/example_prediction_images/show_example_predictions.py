@@ -1,3 +1,4 @@
+#load 10 example image batches of test dataset and the predicted label from one shadow modelm to show their predictions
 import os
 import torch
 import numpy as np
@@ -18,14 +19,13 @@ data_dir = os.path.expanduser("~/amelie/shadow_models_data/celebA")
 
 os.makedirs(plots_dir, exist_ok=True)
 
-# Transformation für die Bilder
 transform = transforms.Compose([
     transforms.Resize((128, 128)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
 ])
 
-# Custom Dataset für .npz Dateien
+# Custom Dataset for .npz Data
 class CelebANPZDataset(torch.utils.data.Dataset):
     def __init__(self, npz_path, transform=None):
         data = np.load(npz_path)
@@ -40,19 +40,19 @@ class CelebANPZDataset(torch.utils.data.Dataset):
         image = self.images[idx]  
         label = self.labels[idx]
 
-        if isinstance(image, np.ndarray):  # Falls das Bild ein NumPy-Array ist
-            if image.shape[-1] == 3:  # Falls es (H, W, C) Format hat (also noch nicht Tensor)
-                image = Image.fromarray(image.astype('uint8'))  # Konvertiere zu PIL Image
+        if isinstance(image, np.ndarray):  
+            if image.shape[-1] == 3:  # if not yet tensor
+                image = Image.fromarray(image.astype('uint8'))  # convert to pil
             else:
-                image = torch.tensor(image).float()  # Falls es bereits Tensor-ähnlich ist, in Float umwandeln
+                image = torch.tensor(image).float()  # if similar to tensor convert to float
 
-        if self.transform and isinstance(image, Image.Image):  # Transformation nur für PIL-Images
+        if self.transform and isinstance(image, Image.Image):  # Transformation only for PIL-Images
             image = self.transform(image)
 
         return image, torch.tensor(label).float()
 
 
-# Shadow Model laden (Nummer 2)
+# load predefined shadow model
 def create_model():
     model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
     model.fc = torch.nn.Sequential(
@@ -61,19 +61,19 @@ def create_model():
     )
     return model.to(device)
 
-# Lade Testdaten
+# load test data
 test_path = os.path.join(data_dir, "shadow_model_2/test/test.npz")
 test_dataset = CelebANPZDataset(test_path, transform=transform)
 test_loader = DataLoader(test_dataset, batch_size=10, shuffle=True, num_workers=4)
 
-# Modell laden
-model_path = os.path.join(models_dir, "shadow_model_1.pth")
+#load model
+model_path = os.path.join(models_dir, "shadow_model_18.pth")
 model = create_model()
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-# Beispiel-Batches generieren
-def save_example_batches(model, loader, num_batches=10):
+#generat example batches
+def save_example_batches(model, loader, num_batches=1):
     for batch_idx, (images, labels) in enumerate(loader):
         if batch_idx >= num_batches:
             break
@@ -89,8 +89,8 @@ def save_example_batches(model, loader, num_batches=10):
         for i, ax in enumerate(axes.flat):
             if i >= len(images):
                 break
-            img = images[i].cpu().numpy().transpose(1, 2, 0)  # In HWC-Format konvertieren
-            img = (img + 1) / 2  # Reskalieren auf [0,1]
+            img = images[i].cpu().numpy().transpose(1, 2, 0)  # Convert in HWC Format
+            img = (img + 1) / 2  # Rescale on [0,1]
 
             ax.imshow(np.clip(img, 0, 1))
             ax.set_title(f"True: {int(labels[i].item())} | Pred: {preds[i]}")
@@ -100,9 +100,9 @@ def save_example_batches(model, loader, num_batches=10):
         batch_save_path = os.path.join(plots_dir, f"batch_{batch_idx+1}.png")
         plt.savefig(batch_save_path, bbox_inches="tight", pad_inches=0.1)
         plt.close()
-        print(f"✅ Batch {batch_idx+1} gespeichert unter: {batch_save_path}")
+        print(f"Batch {batch_idx+1} saved at: {batch_save_path}")
 
 # Speichere die Beispiel-Batches
 save_example_batches(model, test_loader, num_batches=10)
 
-print("✅ 10 Beispiel-Batches erfolgreich gespeichert!")
+print(" Successfully saved 10 example images!")

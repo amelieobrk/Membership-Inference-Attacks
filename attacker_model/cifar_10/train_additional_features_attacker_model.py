@@ -8,8 +8,8 @@ from sklearn.metrics import precision_score, recall_score, accuracy_score, f1_sc
 import json
 
 # Ensure directory for plots and model save path exist
-MODEL_SAVE_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10/models"
-RESULTS_DIR = "/home/lab24inference/amelie/attacker_model/synthetic_cifar_10/results"
+MODEL_SAVE_DIR = "/home/lab24inference/amelie/attacker_model/cifar_10/models"
+RESULTS_DIR = "/home/lab24inference/amelie/attacker_model/cifar_10/results"
 os.makedirs(MODEL_SAVE_DIR, exist_ok=True)
 
 os.makedirs(RESULTS_DIR, exist_ok=True)  # Erstellt den Ordner nur, falls er nicht existiert
@@ -21,7 +21,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"[INFO] Using device: {device}")
 
 # Load Data
-DATA_FILE = "/home/lab24inference/amelie/shadow_models/synthetic_cifar_models/attack_data/combined_attack_data.npz"
+DATA_FILE = "/home/lab24inference/amelie/shadow_models/cifar_models/attack_data/combined_attack_data.npz"
 print("[INFO] Loading dataset...")
 data = np.load(DATA_FILE)
 X_train = data["X_train"].astype(np.float32)
