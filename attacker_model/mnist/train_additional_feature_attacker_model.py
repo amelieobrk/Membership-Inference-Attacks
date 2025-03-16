@@ -17,11 +17,11 @@ RESULTS_FILE = os.path.join(RESULTS_DIR, "additional_feature_attacker_model_resu
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"[INFO] Using device: {device}")
+print(f" Using device: {device}")
 
 # Load Data
 DATA_FILE = "/home/lab24inference/amelie/shadow_models/mnist_models/attack_data/combined_attack_data.npz"
-print("[INFO] Loading dataset...")
+print(" Loading dataset...")
 data = np.load(DATA_FILE)
 X_train = data["X_train"].astype(np.float32)
 y_train = data["y_train"].astype(np.float32)
@@ -40,7 +40,7 @@ extra_test_features = compute_extra_features(X_test)
 X_train = np.hstack([X_train, extra_train_features])
 X_test = np.hstack([X_test, extra_test_features])
 
-print(f"[INFO] Extended dataset shape: X_train {X_train.shape}, X_test {X_test.shape}")
+print(f" Extended dataset shape: X_train {X_train.shape}, X_test {X_test.shape}")
 
 # Define Dataset Class
 class AttackerDataset(Dataset):
@@ -119,7 +119,7 @@ def train_attacker_model(X_train, y_train, X_test, y_test):
         print(f"Epoch [{epoch+1}/20], Loss: {running_loss / len(train_loader):.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}, AUC: {auc:.4f}")
 
     # Save model
-    torch.save(model.state_dict(), os.path.join(MODEL_SAVE_DIR, "cifar-10_attacker_model.pth"))
+    torch.save(model.state_dict(), os.path.join(MODEL_SAVE_DIR, "additional_features_attacker_model.pth"))
 
     return {
         "train_losses": train_losses,
@@ -131,7 +131,7 @@ def train_attacker_model(X_train, y_train, X_test, y_test):
     }
 
 ## Final model training with features "Prediction Entropy + Gini Index + Class Label + Confidence Scores"
-print("[INFO] Running final training...")
+print(" Running final training...")
 
 final_results = train_attacker_model(X_train[:, [11, 12, 0, 10]], y_train, X_test[:, [11, 12, 0, 10]], y_test)
 
@@ -140,6 +140,4 @@ with open(RESULTS_FILE, "w") as json_file:
     json.dump(final_results, json_file, indent=4)
 
 
-
-
-print("[INFO] Final model training completed and model saved.")
+print(" Final model training completed and model saved.")

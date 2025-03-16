@@ -1,3 +1,5 @@
+#train a cnn on the celebA Data using prediction entropy and log odds as additional features
+
 import os
 import numpy as np
 import torch

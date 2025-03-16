@@ -1,3 +1,5 @@
+#train attacker model on cifar-10 as a Random forest or Logistisc Regression (since its a binary classification task)
+
 import os
 import numpy as np
 import json

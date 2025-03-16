@@ -14,7 +14,7 @@ print(f"Using device: {device}")
 # Directories
 base_dir = os.path.expanduser("~/amelie/shadow_models/celebA_models")
 models_dir = os.path.join(base_dir, "models")
-plots_dir = os.path.join(base_dir, "example_batches")
+plots_dir = os.path.join(base_dir, "example_prediction_images")
 data_dir = os.path.expanduser("~/amelie/shadow_models_data/celebA")
 
 os.makedirs(plots_dir, exist_ok=True)
@@ -102,7 +102,7 @@ def save_example_batches(model, loader, num_batches=1):
         plt.close()
         print(f"Batch {batch_idx+1} saved at: {batch_save_path}")
 
-# Speichere die Beispiel-Batches
+# Save example batches
 save_example_batches(model, test_loader, num_batches=10)
 
 print(" Successfully saved 10 example images!")

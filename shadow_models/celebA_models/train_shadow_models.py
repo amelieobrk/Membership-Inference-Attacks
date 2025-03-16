@@ -1,3 +1,5 @@
+#train shadow models on synthetic celebA data
+
 import os
 import json
 import numpy as np

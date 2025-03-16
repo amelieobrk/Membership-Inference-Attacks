@@ -69,6 +69,9 @@ y_train = data["y_train"]
 X_test = data["X_test"]
 y_test = data["y_test"]
 
+# Debugging: Check mean and std of training data
+print(f"X_train Mean: {X_train.mean()}, Std: {X_train.std()}")
+print(f"X_test Mean: {X_test.mean()}, Std: {X_test.std()}")  
 # Ensure the input feature size matches
 input_dim = X_train.shape[1]
 
