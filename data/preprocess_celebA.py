@@ -43,7 +43,7 @@ print("Image processing complete.")
 
 
 
-# Bilder verarbeiten und speichern
+# Process and Save Images
 process_and_save_images(smiling, 'smiling')
 process_and_save_images(non_smiling, 'non_smiling')
 
